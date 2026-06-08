@@ -567,27 +567,32 @@ function enterRoom(x, y) {
       break;
     }
     case 'key':
+      if (room.cleared) { addLog('You already grabbed the keycard from here.', 'msg'); break; }
       state.hasKey = true;
       state.grid[y][x] = { type: 'key', cleared: true };
       addLog('🔑 You found an access keycard! The boss chamber can now be unlocked.', 'loot');
       updateKeyStatus();
       break;
     case 'intel':
+      if (room.cleared) { addLog('The terminal is already looted.', 'msg'); break; }
       state.bossRevealed = true;
       state.grid[y][x] = { type: 'intel', cleared: true };
       addLog('💡 Intel terminal! Boss location revealed on the grid (◆).', 'loot');
       break;
     case 'vault':
+      if (room.cleared) { addLog('The vault has already been looted.', 'msg'); break; }
       state.grid[y][x] = { type: 'vault', cleared: true };
       state.inventory.push({ name: 'Synth-Katana', type: 'weapon', dice: 10, bonus: 2 });
       addLog('🏦 Armory vault breached! Found Synth-Katana (d10+2).', 'loot');
       break;
     case 'vault2':
+      if (room.cleared) { addLog('The vault has already been looted.', 'msg'); break; }
       state.grid[y][x] = { type: 'vault2', cleared: true };
       state.inventory.push({ name: 'Chrome Carapace', type: 'armor', def: 4, evd: 1 });
       addLog('🏦 DEF vault breached! Found Chrome Carapace (+4 DEF / +1 EVD).', 'loot');
       break;
     case 'vault3':
+      if (room.cleared) { addLog('The vault has already been looted.', 'msg'); break; }
       state.grid[y][x] = { type: 'vault3', cleared: true };
       state.inventory.push({ name: 'Ghost-Walk Rig', type: 'armor', def: 1, evd: 4 });
       addLog('🏦 EVD vault breached! Found Ghost-Walk Rig (+1 DEF / +4 EVD).', 'loot');
@@ -947,7 +952,10 @@ function renderGrid() {
 // ==================== KEYBOARD ====================
 document.addEventListener('keydown', (e) => {
   if (state.gameOver) return;
-  if (document.getElementById('overlayContainer').innerHTML) return;
+  if (document.getElementById('overlayContainer').innerHTML) {
+    if (state.gameOver && (e.key === 'Enter')) { e.preventDefault(); newGame(); }
+    return;
+  }
 
   if (combatEnemy) {
     if (e.key === 'Enter' || e.key === ' ' || e.key === 'a' || e.key === 'A') { e.preventDefault(); playerAttack(); }
