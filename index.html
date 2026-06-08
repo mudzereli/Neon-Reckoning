@@ -221,6 +221,11 @@ h1{
         <div id="inv"></div>
         <div style="margin-top:6px;font-size:.65rem;color:#05d5ff" id="keyStatus">🔑 No key</div>
       </div>
+      <div class="panel">
+        <h2>◈ ROOM</h2>
+        <div id="roomArt" style="font-size:.5rem;line-height:1.2;color:#4a7a6a;text-align:center;white-space:pre;margin-bottom:4px"></div>
+        <div id="roomDesc" style="font-size:.85rem;color:#7a9aaa"></div>
+      </div>
     </div>
   </div>
   <div class="panel">
@@ -792,6 +797,8 @@ function render() {
   updateKeyStatus();
   // Grid
   renderGrid();
+  // Room
+  renderRoom();
   // Inventory
   renderInventory();
   // Combat panel (if active)
@@ -949,13 +956,206 @@ function renderGrid() {
   }
 }
 
+// ASCII room art and descriptions
+const roomData = {
+  empty: {
+    art: `
+   .---------.
+  /           \\
+ |  ___  ___  |
+ | |   ||   | |
+ | |___||___| |
+ |  ___  ___  |
+ | |   ||   | |
+ | |___||___| |
+ |   ABANDONED |
+  \\_________/`,
+    desc: 'Abandoned cubicles. Flickering monitors. Dust and silence.'
+  },
+  enemy: {
+    art: `
+   .---------.
+  /           \\
+ |  .=====.   |
+ |  | 0 0 |   |
+ |  |  _  |   |
+ |  | / \\ |   |
+ |  |/   \\|   |
+ |  HOSTILE   |
+  \\_________/`,
+    desc: 'A figure moves in the shadows. Weapon drawn.'
+  },
+  key: {
+    art: `
+   .---------.
+  /           \\
+ |  .-------. |
+ |  || KEY  | |
+ |  || CARD | |
+ |  |'-----'| |
+ |  | [ ]'  | |
+ |  '-------' |
+ |  ACCESS    |
+  \\_________/`,
+    desc: 'A keycard terminal pulses with a soft blue light.'
+  },
+  intel: {
+    art: `
+   .---------.
+  /           \\
+ |  .-------. |
+ |  || ░░░  | |
+ |  || ░░░  | |
+ |  || MAP  | |
+ |  || DATA | |
+ |  '-------' |
+ |  INTELLIGENCE|
+  \\_________/`,
+    desc: 'Data terminals flicker. Floor plans scroll across screens.'
+  },
+  heal: {
+    art: `
+   .---------.
+  /           \\
+ |  .---.---. |
+ |  | + | + | |
+ |  |---+---| |
+ |  | + | + | |
+ |  |---+---| |
+ |  '-------' |
+ |  MED-BAY   |
+  \\_________/`,
+    desc: 'A dusty med-station. A few vials remain intact.'
+  },
+  trap: {
+    art: `
+   .---------.
+  /           \\
+ |   !   !    |
+ |  !!! !!!   |
+ |   !   !    |
+ |  .-----.   |
+ |  | ALERT|  |
+ |  '-----'   |
+ |  TRIGGERED |
+  \\_________/`,
+    desc: 'Tripped a motion sensor. Something just activated.'
+  },
+  loot: {
+    art: `
+   .---------.
+  /           \\
+ |  .---.---. |
+ |  |[  |[  | |
+ |  |--- |---| |
+ |  |  [ |  [| |
+ |  '-------' |
+ |  CRATES    |
+  \\_________/`,
+    desc: 'Abandoned gear and scattered cred-chips litter the floor.'
+  },
+  boss: {
+    art: `
+   .---------.
+  /  __   __  \\
+ |  |  | |  | |
+ |  |  | |  | |
+ |  |  | |  | |
+ |  |  | |  | |
+ |  |  | |  | |
+ |  |##| |##| |
+ |  BOSS ROOM |
+  \\_________/`,
+    desc: 'Massive blast doors. The Spire\'s master awaits inside.'
+  },
+  vault: {
+    art: `
+   .---------.
+  /           \\
+ |  .-------. |
+ |  || ═══ || |
+ |  || ═══ || |
+ |  || ═══ || |
+ |  '-------' |
+ |  WEAPON    |
+  \\_________/`,
+    desc: 'A reinforced vault. Rare tech glimmers behind the grate.'
+  },
+  vault2: {
+    art: `
+   .---------.
+  /           \\
+ |  .-------. |
+ |  || ███ || |
+ |  || ███ || |
+ |  || ███ || |
+ |  '-------' |
+ |  DEFENSE   |
+  \\_________/`,
+    desc: 'A reinforced vault. Thick plating lines the interior.'
+  },
+  vault3: {
+    art: `
+   .---------.
+  /           \\
+ |  .-------. |
+ |  || ≈≈≈ || |
+ |  || ≈≈≈ || |
+ |  || ≈≈≈ || |
+ |  '-------' |
+ |  PHASE     |
+  \\_________/`,
+    desc: 'A reinforced vault. The air hums with distortion fields.'
+  },
+};
+
+function renderRoom() {
+  let room = state.grid[state.py][state.px];
+  let data = roomData[room.type] || roomData.empty;
+  let artEl = document.getElementById('roomArt');
+  let descEl = document.getElementById('roomDesc');
+  if (room.type === 'enemy' && room.fled) {
+    artEl.textContent = roomData.enemy.art;
+    descEl.textContent = 'Enemy still inside. Ready to fight?';
+  } else if (room.cleared && (room.type === 'vault' || room.type === 'vault2' || room.type === 'vault3')) {
+    artEl.textContent = `
+   .---------.
+  /           \\
+ |  .-------. |
+ |  | ----- | |
+ |  | ----- | |
+ |  | ----- | |
+ |  '-------' |
+ |  EMPTY     |
+  \\_________/`;
+    descEl.textContent = 'The vault has been cleaned out.';
+  } else if (room.cleared && (room.type === 'key' || room.type === 'intel')) {
+    artEl.textContent = `
+   .---------.
+  /           \\
+ |  .-------. |
+ |  | =  =  | |
+ |  |   =   | |
+ |  | =  =  | |
+ |  '-------' |
+ |  SCRAPPED  |
+  \\_________/`;
+    descEl.textContent = 'Nothing useful left here.';
+  } else {
+    artEl.textContent = data.art;
+    descEl.textContent = data.desc;
+  }
+}
+
 // ==================== KEYBOARD ====================
 document.addEventListener('keydown', (e) => {
-  if (state.gameOver) return;
+  // Allow Enter on game over overlay to restart
   if (document.getElementById('overlayContainer').innerHTML) {
     if (state.gameOver && (e.key === 'Enter')) { e.preventDefault(); newGame(); }
     return;
   }
+
+  if (state.gameOver) return;
 
   if (combatEnemy) {
     if (e.key === 'Enter' || e.key === ' ' || e.key === 'a' || e.key === 'A') { e.preventDefault(); playerAttack(); }
