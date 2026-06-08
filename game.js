@@ -55,6 +55,76 @@ const CONFIG = {
   ENEMY_ATTACK_DELAY: 500,
 };
 
+// ==================== DATA POOLS ====================
+const ENEMY_POOL = [
+  { name: 'Glitch Drone',    emoji: '🤖', hp: 10, atk: 2, def: 2, evd: 1, dice: 4, xp: 3, creds: 15 },
+  { name: 'Chrome Ganger',   emoji: '🧟', hp: 14, atk: 3, def: 3, evd: 2, dice: 6, xp: 5, creds: 25 },
+  { name: 'CorpSec Enforcer',emoji: '👮', hp: 18, atk: 4, def: 3, evd: 2, dice: 6, xp: 7, creds: 35 },
+  { name: 'Rogue Drone Swarm',emoji:'🐝', hp: 12, atk: 3, def: 2, evd: 3, dice: 8, xp: 6, creds: 30 },
+];
+
+const BOSSES = [
+  { name: 'OVERSEER v2.0',  emoji: '👁️', hp: 80, maxHp:80, atk: 5, def: 4, evd: 3, dice: 10, xp: 20, creds: 120,
+    desc: 'A massive security AI core, crackling with malevolent energy.' },
+  { name: 'CYBER-LICH',     emoji: '💀', hp: 70, maxHp:70, atk: 6, def: 4, evd: 4, dice: 8, xp: 18, creds: 100,
+    desc: 'A former netrunner fused with the Spire\'s mainframe.' },
+];
+
+const WEAPON_POOL = [
+  { name: 'Shock Baton',    dice: 4, bonus: 3 },
+  { name: 'Mono-Katana',    dice: 6, bonus: 1 },
+  { name: 'Plasma Cutter',  dice: 6, bonus: 2 },
+  { name: 'Pulse Rifle',    dice: 8, bonus: 0 },
+  { name: 'Scrap Cannon',   dice: 10, bonus: 0 },
+  { name: 'Needle Pistol',  dice: 4, bonus: 1 },
+  { name: 'Arc Blaster',    dice: 6, bonus: 3 },
+  { name: 'Rail Driver',    dice: 8, bonus: 1 },
+  { name: 'Thermite Axe',   dice: 8, bonus: 2 },
+  { name: 'Ion Gauntlets',  dice: 6, bonus: 0 },
+  { name: 'Razor Whip',     dice: 4, bonus: 4 },
+  { name: 'Nail Gun',       dice: 6, bonus: 0 },
+  { name: 'Gauss Rifle',    dice: 10, bonus: 1 },
+  { name: 'Saw Blade',      dice: 8, bonus: 0 },
+  { name: 'EMP Rod',        dice: 4, bonus: 2 },
+  { name: 'Concussion Hammer', dice: 9, bonus: 1 },
+  { name: 'Laser Lance',    dice: 6, bonus: 4 },
+  { name: 'Flechette Gun',  dice: 8, bonus: 0 },
+  { name: 'Overcharged Cell', dice: 4, bonus: 6 },
+  { name: 'Rusty Cleaver',  dice: 6, bonus: 0 },
+];
+
+const ARMOR_POOL = [
+  // Pure DEF
+  { name: 'Exo Frame',     def: 5, evd: -1 },
+  { name: 'Plated Jacket', def: 4, evd: 0 },
+  { name: 'Flak Vest',     def: 3, evd: 0 },
+  { name: 'Crash Padding', def: 3, evd: -1 },
+  { name: 'Kevlar Vest',   def: 2, evd: 0 },
+  { name: 'Grav Harness',  def: 2, evd: -1 },
+
+  // Pure EVD
+  { name: 'Ghost Mantle',  def: -1, evd: 5 },
+  { name: 'Phase Cloak',   def: 0, evd: 4 },
+  { name: 'Reflex Mesh',   def: -1, evd: 4 },
+  { name: 'Thermal Cloak', def: 0, evd: 2 },
+
+  // Balanced
+  { name: 'Hardlight Field', def: 2, evd: 2 },
+  { name: 'Scav Plating',    def: 2, evd: 1 },
+  { name: 'Magnet Shield',   def: 1, evd: 2 },
+  { name: 'Nano-Weave Suit', def: 1, evd: 1 },
+
+  // Trade-offs
+  { name: 'Riot Shield',     def: 3, evd: -2 },
+  { name: 'Chainmail Tarp',  def: 4, evd: -2 },
+  { name: 'Glass Cannon Rig', def: -2, evd: 5 },
+  { name: 'Servo Harness',   def: 5, evd: -3 },
+];
+
+// ==================== VAULT GEAR ====================
+const VAULT_WEAPON = { name: 'Synth-Katana', type: 'weapon', dice: 10, bonus: 2 };
+const VAULT_ARMOR = { name: 'Chrome Carapace', type: 'armor', def: 6, evd: 1 };
+
 let state = {
   grid: [],         // 2D array of room objects
   px: 0, py: 0,    // player position
@@ -210,15 +280,8 @@ function generateFloor() {
 }
 
 // ==================== ENEMIES ====================
-const enemyPool = [
-  { name: 'Glitch Drone',    emoji: '🤖', hp: 10, atk: 2, def: 2, evd: 1, dice: 4, xp: 3, creds: 15 },
-  { name: 'Chrome Ganger',   emoji: '🧟', hp: 14, atk: 3, def: 3, evd: 2, dice: 6, xp: 5, creds: 25 },
-  { name: 'CorpSec Enforcer',emoji: '👮', hp: 18, atk: 4, def: 3, evd: 2, dice: 6, xp: 7, creds: 35 },
-  { name: 'Rogue Drone Swarm',emoji:'🐝', hp:12,atk: 3, def: 2, evd: 3, dice: 8, xp: 6, creds: 30 },
-];
-
 function getEnemyForFloor() {
-  let pool = enemyPool.slice(0, Math.min(state.level + 1, enemyPool.length));
+  let pool = ENEMY_POOL.slice(0, Math.min(state.level + 1, ENEMY_POOL.length));
   let e = pool[Math.floor(Math.random() * pool.length)];
   return {
     name: e.name,
@@ -235,13 +298,7 @@ function getEnemyForFloor() {
 }
 
 function getBoss() {
-  const bosses = [
-    { name: 'OVERSEER v2.0',  emoji: '👁️', hp: 40, maxHp:40, atk: 5, def: 4, evd: 3, dice: 10, xp: 20, creds: 120,
-      desc: 'A massive security AI core, crackling with malevolent energy.' },
-    { name: 'CYBER-LICH',     emoji: '💀', hp: 35, maxHp:35, atk: 6, def: 4, evd: 4, dice: 8, xp: 18, creds: 100,
-      desc: 'A former netrunner fused with the Spire\'s mainframe.' },
-  ];
-  return bosses[Math.floor(Math.random() * bosses.length)];
+  return BOSSES[Math.floor(Math.random() * BOSSES.length)];
 }
 
 // ==================== DICE ROLLING ====================
@@ -461,14 +518,14 @@ function searchRoom() {
     case 'vault':
       if (room.cleared) { addLog('The vault has already been looted.', 'msg'); break; }
       state.grid[state.py][state.px] = { type: 'vault', cleared: true };
-      state.inventory.push({ name: 'Synth-Katana', type: 'weapon', dice: 10, bonus: 2 });
+      state.inventory.push({ ...VAULT_WEAPON });
       addLog('🏦 Armory vault breached! Found Synth-Katana (d10+2).', 'loot');
       break;
     case 'vault2':
       if (room.cleared) { addLog('The vault has already been looted.', 'msg'); break; }
       state.grid[state.py][state.px] = { type: 'vault2', cleared: true };
-      state.inventory.push({ name: 'Chrome Carapace', type: 'armor', def: 4, evd: 1 });
-      addLog('🏦 DEF vault breached! Found Chrome Carapace (+4 DEF / +1 EVD).', 'loot');
+      state.inventory.push({ ...VAULT_ARMOR });
+      addLog('🏦 DEF vault breached! Found Chrome Carapace (+6 DEF / +1 EVD).', 'loot');
       break;
     case 'vault3':
       if (room.cleared) { addLog('The vault has already been looted.', 'msg'); break; }
@@ -553,34 +610,12 @@ function handleLootRoom() {
   let r = Math.random();
   if (r < CONFIG.LOOT_WEAPON_CHANCE) {
     // Weapon
-    let weapons = [
-      { name: 'Shock Baton',    dice: 4, bonus: 3 },
-      { name: 'Mono-Katana',    dice: 6, bonus: 1 },
-      { name: 'Plasma Cutter',  dice: 6, bonus: 2 },
-      { name: 'Pulse Rifle',    dice: 8, bonus: 0 },
-      { name: 'Scrap Cannon',   dice: 10, bonus: 0 },
-      { name: 'Needle Pistol',  dice: 4, bonus: 1 },
-      { name: 'Arc Blaster',    dice: 6, bonus: 3 },
-      { name: 'Rail Driver',    dice: 8, bonus: 1 },
-      { name: 'Thermite Axe',   dice: 8, bonus: 2 },
-      { name: 'Ion Gauntlets',  dice: 6, bonus: 0 },
-    ];
-    let w = weapons[Math.floor(Math.random() * weapons.length)];
+    let w = WEAPON_POOL[Math.floor(Math.random() * WEAPON_POOL.length)];
     state.inventory.push({ name: w.name, type: 'weapon', dice: w.dice, bonus: w.bonus });
     addLog(`🗡️ Found ${w.name} (d${w.dice}+${w.bonus}).`, 'loot');
   } else if (r < CONFIG.LOOT_ARMOR_CHANCE) {
     // Armor
-    let armors = [
-      { name: 'Kevlar Vest', def: 2, evd: 0 },
-      { name: 'Plated Jacket', def: 3, evd: 0 },
-      { name: 'Nano-Weave Suit', def: 1, evd: 2 },
-      { name: 'Riot Shield', def: 2, evd: 0 },
-      { name: 'Phase Cloak', def: 0, evd: 3 },
-      { name: 'Exo Frame', def: 4, evd: 0 },
-      { name: 'Reflex Mesh', def: 1, evd: 3 },
-      { name: 'Hardlight Field', def: 2, evd: 2 },
-    ];
-    let a = armors[Math.floor(Math.random() * armors.length)];
+    let a = ARMOR_POOL[Math.floor(Math.random() * ARMOR_POOL.length)];
     state.inventory.push({ name: a.name, type: 'armor', def: a.def, evd: a.evd });
     let label = a.evd > 0 ? `+${a.def} DEF / +${a.evd} EVD` : `+${a.def} DEF`;
     addLog(`🛡️ Found ${a.name} (${label}).`, 'loot');
