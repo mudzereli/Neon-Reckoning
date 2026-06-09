@@ -283,6 +283,7 @@ function roll(sides) { return Math.floor(Math.random() * sides) + 1; }
 
 // ==================== COMBAT ====================
 let combatEnemy = null;
+let defending = false;
 
 function startCombat(enemy) {
   combatEnemy = { ...enemy };
@@ -303,20 +304,23 @@ function updateCombatPanel() {
   document.getElementById('combatEnemyEvd').textContent = e.evd;
   document.getElementById('combatEnemyDef').textContent = e.def;
   let totalAtk = state.atk + state.weapon.bonus;
-  document.getElementById('combatPlayerAtk').textContent = `d${state.weapon.dice}+${totalAtk}`;
+  let atkBonus = defending ? -1 : 0;
+  let defBonus = defending ? 1 : 0;
+  document.getElementById('combatPlayerAtk').textContent = `d${state.weapon.dice}+${totalAtk + atkBonus}${defending ? ' (−1)' : ''}`;
   document.getElementById('combatPlayerEvd').textContent = state.evd;
-  document.getElementById('combatPlayerDef').textContent = state.def;
+  document.getElementById('combatPlayerDef').textContent = state.def + defBonus;
 }
 
 function endCombat() {
   combatEnemy = null;
+  defending = false;
   document.getElementById('combatPanel').classList.remove('active');
 }
 
 function playerAttack() {
   if (!combatEnemy) return;
   let e = combatEnemy;
-  let totalAtk = state.atk + state.weapon.bonus;
+  let totalAtk = state.atk + state.weapon.bonus + (defending ? -1 : 0);
   let dmgRoll = roll(state.weapon.dice) + totalAtk;
 
   if (dmgRoll <= e.evd) {
@@ -342,6 +346,9 @@ function playerAttack() {
       gameOverWin();
     } else {
       addLog(`💀 ${e.name} destroyed! +${e.xp} XP, +${e.creds}¢`, 'win');
+      // Auto-loot the room after defeating the enemy
+      addLog('🔍 You search the remains...', 'msg');
+      handleLootRoom();
     }
     render();
     return;
@@ -356,15 +363,18 @@ function enemyAttack() {
   if (!combatEnemy) return;
   let e = combatEnemy;
   let dmgRoll = roll(e.dice) + e.atk;
+  let effectiveDef = state.def + (defending ? 1 : 0);
+  let defLabel = defending ? `${state.def}+1` : state.def;
+  defending = false;
 
   if (dmgRoll <= state.evd) {
     addLog(`💨 You evade ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} ≤ EVD ${state.evd})`, 'info');
-  } else if (dmgRoll <= state.def) {
-    addLog(`🛡️ Your armor blocks ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} > EVD ${state.evd}, ≤ DEF ${state.def})`, 'info');
+  } else if (dmgRoll <= effectiveDef) {
+    addLog(`🛡️ Your armor blocks ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} > EVD ${state.evd}, ≤ DEF ${defLabel})`, 'info');
   } else {
-    let dmg = dmgRoll - state.def;
+    let dmg = dmgRoll - effectiveDef;
     state.hp -= dmg;
-    addLog(`💥 ${e.name} hits you for <b>${dmg}</b> damage. (d${e.dice}+${e.atk}=${dmgRoll} - ${state.def} DEF)`, 'danger');
+    addLog(`💥 ${e.name} hits you for <b>${dmg}</b> damage. (d${e.dice}+${e.atk}=${dmgRoll} - ${defLabel} DEF)`, 'danger');
   }
 
   if (state.hp <= 0) {
@@ -376,6 +386,14 @@ function enemyAttack() {
 
   updateCombatPanel();
   render(); // update your HP bar
+}
+
+function playerDefend() {
+  if (!combatEnemy) return;
+  defending = true;
+  addLog('🛡️ Defensive stance: +1 DEF, −1 ATK.', 'info');
+  updateCombatPanel();
+  playerAttack();
 }
 
 function playerFlee() {
@@ -394,6 +412,18 @@ function playerFlee() {
     if (state.hp <= 0) { state.hp = 0; gameOverLose(); return; }
   }
   render();
+}
+
+// ==================== DIRECTIONAL MOVEMENT (D-PAD) ====================
+function movePlayer(dx, dy) {
+  if (state.gameOver) return;
+  if (combatEnemy) return;
+  let panel = document.getElementById('combatPanel');
+  if (panel._pendingBoss) return;
+  let nx = state.px + dx;
+  let ny = state.py + dy;
+  if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) return;
+  enterRoom(nx, ny);
 }
 
 // ==================== ROOM ACTIONS ====================
@@ -467,8 +497,15 @@ function enterRoom(x, y) {
 // ==================== SEARCH ROOM ====================
 function searchRoom() {
   if (state.gameOver) return;
+  if (combatEnemy) return;
   let room = state.grid[state.py][state.px];
   let key = `${state.px},${state.py}`;
+
+  // Can't search rooms with active threats
+  if (room.type === 'enemy' || room.type === 'boss' || room.type === 'trap') {
+    addLog('No time to search — deal with the room first.', 'msg');
+    return;
+  }
 
   // Already searched
   if (state.searchedRooms.has(key)) return;
@@ -550,6 +587,7 @@ function acceptBossFight() {
   // Restore normal combat buttons
   panel.querySelector('.btn-row').innerHTML = `
     <button class="btn danger" onclick="playerAttack()">⚔ <u>A</u>ttack</button>
+    <button class="btn" onclick="playerDefend()">🛡️ <u>D</u>efend</button>
     <button class="btn" id="fleeBtn" onclick="playerFlee()" disabled>↩ <u>F</u>lee</button>
   `;
   boss._isBoss = true;
@@ -702,11 +740,11 @@ function render() {
 function updateKeyStatus() {
   let el = document.getElementById('keyStatus');
   if (state.hasKey) {
-    el.innerHTML = '🔑 KEY CARD ACQUIRED';
+    el.innerHTML = '🔑 Key';
     el.style.color = '#ffcc00';
   } else {
     el.innerHTML = '🔒 No key';
-    el.style.color = '#05d5ff';
+    el.style.color = '#7a9aaa';
   }
 }
 
@@ -955,8 +993,13 @@ function renderRoom() {
   let descEl = document.getElementById('roomDesc');
   let resultEl = document.getElementById('roomSearchResult');
   let searchBtn = document.getElementById('searchBtn');
+  let dpadSearch = document.getElementById('dpadSearchBtn');
   let key = `${state.px},${state.py}`;
   let searched = state.searchedRooms.has(key);
+
+  // Hide D-pad search button when there's a threat or already searched
+  let canSearch = !state.gameOver && !combatEnemy && room.type !== 'enemy' && room.type !== 'boss' && room.type !== 'trap' && !searched;
+  if (dpadSearch) dpadSearch.style.display = canSearch ? '' : 'none';
 
   // Get room variant (atmosphere fluff)
   let v = variants[room.variant] || variants[0];
@@ -979,6 +1022,15 @@ function renderRoom() {
     } else {
       resultEl.textContent = '';
     }
+    searchBtn.style.display = 'none';
+    return;
+  }
+
+  // Trap rooms — hide search, already triggered
+  if (room.type === 'trap') {
+    artEl.textContent = `${v.emoji} ⚡`;
+    descEl.textContent = v.desc;
+    resultEl.textContent = '⚠️ Trap triggered';
     searchBtn.style.display = 'none';
     return;
   }
@@ -1020,6 +1072,7 @@ document.addEventListener('keydown', (e) => {
 
   if (combatEnemy) {
     if (e.key === 'Enter' || e.key === ' ' || e.key === 'a' || e.key === 'A') { e.preventDefault(); playerAttack(); }
+    if (e.key === 'd' || e.key === 'D') { e.preventDefault(); playerDefend(); }
     if (e.key === 'Escape' || e.key === 'f' || e.key === 'F') { e.preventDefault(); playerFlee(); }
     return;
   }
