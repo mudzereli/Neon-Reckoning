@@ -43,10 +43,12 @@ h1{
   letter-spacing:2px;
 }
 /* layout */
-.row{display:flex;gap:8px;flex:1;min-height:0}
+.row{display:flex;gap:8px;min-height:0}
 .col-left{flex:0 0 auto;width:430px}
 .col-right{flex:1;min-width:260px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .col-right .panel{flex-shrink:0}
+.col-right .panel-inv{flex:1;min-height:0;display:flex;flex-direction:column}
+.col-right .panel-inv #inv{flex:1;overflow-y:auto;min-height:0}
 /* panels */
 .panel{
   border:1px solid #1a3a4a;
@@ -206,18 +208,18 @@ h1{
     </div>
     <div class="col-right">
       <div class="panel">
-        <h2>◈ STATS</h2>
+        <h2>◈ STATS <span style="float:right;font-weight:normal;font-size:.7rem;color:#7a9aaa">LVL <span id="lvlVal" style="color:#ffcc00">1</span> &nbsp; ¢<span id="credsVal" style="color:#ffcc00">0</span></span></h2>
         <div class="stat-row"><span>HP</span><span class="stat-val" id="hpText">20/20</span></div>
         <div class="bar-bg"><div class="bar-fill bar-hp" id="hpBar" style="width:100%"></div></div>
-        <div class="stat-row"><span>ATK</span><span class="stat-val" id="atkVal">+2</span></div>
-        <div class="stat-row"><span>DEF</span><span class="stat-val"><span id="defVal">3</span></span></div>
-        <div class="stat-row"><span>EVD</span><span class="stat-val"><span id="evdVal">2</span></span></div>
-        <div class="stat-row"><span>Level</span><span class="stat-val" id="lvlVal">1</span></div>
-        <div class="stat-row"><span>Creds</span><span class="stat-val" id="credsVal">0</span></div>
         <div class="stat-row"><span>XP</span><span class="stat-val" id="xpText">0/10</span></div>
         <div class="bar-bg"><div class="bar-fill bar-xp" id="xpBar" style="width:0%"></div></div>
+        <div class="stat-row">
+          <span>ATK</span><span class="stat-val" id="atkVal">d4+2</span>
+          <span style="margin-left:10px;color:#7a9aaa">DEF</span><span class="stat-val"><span id="defVal">3</span></span>
+          <span style="margin-left:10px;color:#7a9aaa">EVD</span><span class="stat-val"><span id="evdVal">2</span></span>
+        </div>
       </div>
-      <div class="panel">
+      <div class="panel panel-inv">
         <h2>◈ INVENTORY</h2>
         <div id="inv"></div>
         <div style="margin-top:6px;font-size:.65rem;color:#05d5ff" id="keyStatus">🔑 No key</div>

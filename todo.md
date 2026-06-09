@@ -1,5 +1,7 @@
 # Todo
 
 - [ ] Tune bosses
-- [ ] Trap detector vault
-- [ ] Med bay detector unit
+- [ ] Inventory Tweaks
+- [ ] Page Icon
+- [ ] Time / Turns to Complete
+- [ ] Scoreboard
