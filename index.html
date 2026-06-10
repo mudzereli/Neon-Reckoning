@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Neon Reckoning</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%230a0a0f'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='monospace' font-size='18' font-weight='bold' fill='%23ff2a6d'%3ENR%3C/text%3E%3C/svg%3E">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;font-family:inherit}
 body{
@@ -26,6 +27,7 @@ body{
   height:100vh;
   display:flex;
   flex-direction:column;
+  overflow-y:auto;
 }
 h1{
   text-align:center;
@@ -48,7 +50,7 @@ h1{
 .col-right{flex:1;min-width:260px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .col-right .panel{flex-shrink:0}
 .col-right .panel-inv{flex:1;min-height:0;display:flex;flex-direction:column}
-.col-right .panel-inv #inv{flex:1;overflow-y:auto;min-height:0}
+.col-right .panel-inv #invItems{flex:1;overflow-y:auto;min-height:0}
 
 /* panels */
 .panel{
@@ -68,10 +70,10 @@ h1{
 /* grid */
 #grid{
   display:grid;
-  grid-template-columns:repeat(10,1fr);
-  gap:2px;
+  grid-template-columns:16px repeat(10,1fr);
+  gap:1px;
   margin:0 auto;
-  max-width:400px;
+  max-width:416px;
 }
 .cell{
   aspect-ratio:1;
@@ -178,12 +180,9 @@ h1{
   border:1px solid #ff8c42;
   background:#0f111a;
   padding:6px 8px;
-  margin-bottom:6px;
+  margin:6px 0;
 }
-#combatPanel.active{display:block}
-#combatPanel h2{color:#ff8c42;font-size:.8rem;letter-spacing:2px;border-bottom:1px solid #3a2a1a;padding-bottom:2px;margin-bottom:4px}
-#combatPanel .enemy-name{color:#ff8c42;font-weight:bold;font-size:.85rem}
-#combatPanel .enemy-desc{color:#7a9aaa;font-size:.75rem;margin-bottom:4px}
+#combatPanel .enemy-name{color:#ff8c42;font-weight:bold;font-size:.8rem}#combatPanel .enemy-desc{color:#7a9aaa;font-size:.7rem}
 /* inventory */
 .inv-item{
   display:flex;
@@ -196,6 +195,13 @@ h1{
 .inv-item.clickable:hover{background:#05d5ff11}
 .inv-item .use{color:#39ff14;cursor:pointer}
 .inv-item .use:hover{text-decoration:underline}
+/* inventory filter chips */
+.inv-filter{
+  font-size:.6rem;padding:0 4px;cursor:pointer;
+  border:1px solid #1a3a4a;color:#5a7a8a;user-select:none;line-height:1.5;
+}
+.inv-filter:hover{border-color:#05d5ff88;color:#05d5ff}
+.inv-filter.active{border-color:#05d5ff;color:#05d5ff;background:#05d5ff11}
 /* modal overlay - only for game over */
 .overlay{
   position:fixed;top:0;left:0;right:0;bottom:0;
@@ -226,10 +232,10 @@ h1{
 <div id="game">
   <h1>⚡ NEON RECKONING</h1>
   <div class="subtitle">// DESCEND INTO THE SPIRE //</div>
-  <div class="row">
+  <div class="row" style="flex-shrink:0">
     <div class="col-left">
       <div class="panel">
-        <h2>◈ GRID</h2>
+        <h2>◈ GRID <span id="timerDisplay" aria-hidden="true" style="float:right;font-weight:normal;font-size:.65rem;color:#7a9aaa">⏱ 00:00</span></h2>
         <div id="grid"></div>
         <div style="margin-top:6px;font-size:.65rem;color:#4a6a7a;text-align:center">
           ⬆⬇⬅➡ move &nbsp;|&nbsp; ◆ boss room &nbsp;|&nbsp; ⚑ start
@@ -250,8 +256,40 @@ h1{
         </div>
       </div>
       <div class="panel panel-inv">
-        <h2>◈ INVENTORY <span style="float:right;font-weight:normal;font-size:.65rem" id="keyStatus">🔒 No key</span></h2>
-        <div id="inv"></div>
+        <div id="inv">
+          <h2 style="display:flex;align-items:center;gap:4px">◈ INVENTORY
+            <span id="keyStatus" style="color:#7a9aaa;font-weight:normal;font-size:.65rem">🔒 No key</span>
+            <span style="flex:1"></span>
+            <span class="inv-filter active" data-filter="all" onclick="toggleInventoryFilter('all')">All</span>
+            <span class="inv-filter active" data-filter="weapon" onclick="toggleInventoryFilter('weapon')">⚔️</span>
+            <span class="inv-filter active" data-filter="armor" onclick="toggleInventoryFilter('armor')">🛡️</span>
+            <span class="inv-filter active" data-filter="heal" onclick="toggleInventoryFilter('heal')">💉</span>
+            <span class="inv-filter active" data-filter="passive" onclick="toggleInventoryFilter('passive')">📡</span>
+          </h2>
+          <div id="invItems"></div>
+        </div>
+        <div id="combatPanel" style="display:none;flex-direction:column;flex:1">
+          <h2 style="color:#ff8c42;font-size:.8rem;letter-spacing:2px;border-bottom:1px solid #3a2a1a;padding-bottom:2px;margin-bottom:4px">⚔ COMBAT</h2>
+          <div style="display:flex;gap:12px;margin-bottom:4px">
+            <div style="flex:1;min-width:0">
+              <div class="enemy-name" style="color:#ff8c42;font-weight:bold;font-size:.85rem" id="combatEnemyName"></div>
+              <div class="enemy-desc" style="color:#7a9aaa;font-size:.75rem" id="combatEnemyDesc"></div>
+            </div>
+            <div style="display:flex;gap:10px;font-size:.8rem">
+              <span style="color:#7a9aaa">ATK</span><span class="stat-val" id="combatEnemyAtk"></span>
+              <span style="color:#7a9aaa;margin-left:6px">DEF</span><span class="stat-val" id="combatEnemyDef"></span>
+              <span style="color:#7a9aaa;margin-left:6px">EVD</span><span class="stat-val" id="combatEnemyEvd"></span>
+            </div>
+          </div>
+          <div class="stat-row"><span>HP</span><span class="stat-val" id="combatEnemyHp"></span></div>
+          <div class="bar-bg"><div class="bar-fill bar-hp" id="combatEnemyHpBar"></div></div>
+          <div class="btn-row">
+            <button class="btn danger" onclick="playerAttack()">⚔️ <u>A</u>ttack</button>
+            <button class="btn" onclick="playerDefend()">🛡️ <u>D</u>efend</button>
+            <button class="btn" id="injectBtn" onclick="useCombatInjector()" style="display:none">💉 Injector</button>
+            <button class="btn" id="fleeBtn" onclick="playerFlee()">↩ <u>F</u>lee</button>
+          </div>
+        </div>
       </div>
       <div class="panel">
         <h2>◈ ROOM</h2>
@@ -262,12 +300,14 @@ h1{
       </div>
     </div>
   </div>
-  <div style="display:flex;gap:8px;min-height:0">
-    <div class="panel" style="flex:1;margin-bottom:0">
+  <div style="display:flex;gap:8px;min-height:0;align-items:stretch;flex:1">
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;min-height:0">
       <h2>◈ EVENT LOG</h2>
-      <div id="log"><div class="msg">System booting...</div></div>
+      <div id="log" style="flex:1;overflow-y:auto;font-size:.78rem;line-height:1.4;min-height:0"><div class="msg">System booting...</div></div>
     </div>
-    <div class="panel" style="margin-bottom:0;display:flex;align-items:center;justify-content:center;padding:4px 8px">
+    <div class="panel" style="display:flex;flex-direction:column">
+      <div style="color:#ff2a6d;font-size:.8rem;letter-spacing:2px;border-bottom:1px solid #1a3a4a;padding-bottom:2px;margin-bottom:4px">&nbsp;</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center">
       <div class="dpad" style="margin:0">
         <button class="dpad-btn up" onclick="movePlayer(0,-1)" title="Up">▲</button>
         <button class="dpad-btn left" onclick="movePlayer(-1,0)" title="Left">◀</button>
@@ -275,20 +315,7 @@ h1{
         <button class="dpad-btn right" onclick="movePlayer(1,0)" title="Right">▶</button>
         <button class="dpad-btn down" onclick="movePlayer(0,1)" title="Down">▼</button>
       </div>
-    </div>
-  </div>
-  <div class="panel" id="combatPanel">
-    <h2>⚔ COMBAT</h2>
-    <div class="enemy-name" id="combatEnemyName"></div>
-    <div class="enemy-desc" id="combatEnemyDesc"></div>
-    <div class="stat-row"><span>Enemy HP</span><span class="stat-val" id="combatEnemyHp"></span></div>
-    <div class="bar-bg"><div class="bar-fill bar-hp" id="combatEnemyHpBar"></div></div>
-    <div class="stat-row"><span>Enemy ATK</span><span class="stat-val" id="combatEnemyAtk"></span> <span style="margin-left:8px">EVD</span><span class="stat-val" id="combatEnemyEvd"></span> <span style="margin-left:8px">DEF</span><span class="stat-val" id="combatEnemyDef"></span></div>
-    <div class="stat-row" style="margin-top:6px"><span>Your  ATK</span><span class="stat-val" id="combatPlayerAtk"></span> <span style="margin-left:8px">EVD</span><span class="stat-val" id="combatPlayerEvd"></span> <span style="margin-left:8px">DEF</span><span class="stat-val" id="combatPlayerDef"></span></div>
-    <div class="btn-row">
-      <button class="btn danger" onclick="playerAttack()">⚔️ <u>A</u>ttack</button>
-      <button class="btn" onclick="playerDefend()">🛡️ <u>D</u>efend</button>
-      <button class="btn" id="fleeBtn" onclick="playerFlee()">↩ <u>F</u>lee</button>
+      </div>
     </div>
   </div>
   <div class="btn-row" style="justify-content:center;margin-top:6px">

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Reckoning — Tests</title>
+<style>
+body{background:#0a0a0f;color:#c0f0ff;font-family:'Cascadia Code','Consolas',monospace;padding:20px}
+h1{color:#ff2a6d;text-shadow:0 0 10px #ff2a6d88}
+.pass{color:#39ff14}
+.fail{color:#ff2a6d}
+.summary{margin-top:16px;padding:8px;border:1px solid #1a3a4a}
+</style>
+</head>
+<body>
+<h1>◈ NEON RECKONING — TESTS</h1>
+<div id="results"></div>
+<div class="summary" id="summary">Running...</div>
+
+<script src="game.js"></script>
+<script>
+// ==================== TEST FRAMEWORK ====================
+const results = document.getElementById('results');
+let passed = 0, failed = 0;
+
+function assert(condition, label) {
+  const div = document.createElement('div');
+  if (condition) {
+    div.className = 'pass';
+    div.textContent = `✓ ${label}`;
+    passed++;
+  } else {
+    div.className = 'fail';
+    div.textContent = `✗ ${label}`;
+    failed++;
+  }
+  results.appendChild(div);
+}
+
+function assertEqual(actual, expected, label) {
+  const pass = actual === expected;
+  const div = document.createElement('div');
+  if (pass) {
+    div.className = 'pass';
+    div.textContent = `✓ ${label} (got "${actual}")`;
+    passed++;
+  } else {
+    div.className = 'fail';
+    div.textContent = `✗ ${label} — expected "${expected}", got "${actual}"`;
+    failed++;
+  }
+  results.appendChild(div);
+}
+
+function group(name) {
+  const div = document.createElement('div');
+  div.style.cssText = 'color:#05d5ff;margin-top:12px;font-size:.85rem';
+  div.textContent = `▸ ${name}`;
+  results.appendChild(div);
+}
+
+// ==================== TESTS ====================
+
+group('formatTime() edge cases');
+
+assertEqual(formatTime(0),      '00:00', '0ms → "00:00"');
+assertEqual(formatTime(1),      '00:00', '1ms (under 1s) → "00:00"');
+assertEqual(formatTime(499),    '00:00', '499ms (under 1s) → "00:00"');
+assertEqual(formatTime(999),    '00:00', '999ms (under 1s) → "00:00"');
+assertEqual(formatTime(1000),   '00:01', '1000ms → "00:01"');
+assertEqual(formatTime(1001),   '00:01', '1001ms → "00:01"');
+assertEqual(formatTime(59000),  '00:59', '59000ms → "00:59"');
+assertEqual(formatTime(59999),  '00:59', '59999ms → "00:59"');
+assertEqual(formatTime(60000),  '01:00', '60000ms (minute rollover) → "01:00"');
+assertEqual(formatTime(60001),  '01:00', '60001ms → "01:00"');
+assertEqual(formatTime(61000),  '01:01', '61000ms → "01:01"');
+assertEqual(formatTime(119000), '01:59', '119000ms → "01:59"');
+assertEqual(formatTime(120000), '02:00', '120000ms (2 min) → "02:00"');
+assertEqual(formatTime(3599000),'59:59', '3599000ms → "59:59"');
+assertEqual(formatTime(3600000),'60:00', '3600000ms → "60:00"');
+assertEqual(formatTime(3661000),'61:01', '3661000ms → "61:01"');
+
+group('startTimer() / stopTimer()');
+
+// Reset timer state
+stopTimer();
+timerElapsed = 0;
+timerStart = null;
+
+// startTimer() should set timerStart and begin interval
+startTimer();
+assert(timerStart !== null, 'startTimer() sets timerStart');
+assert(timerInterval !== null, 'startTimer() sets timerInterval');
+assert(timerElapsed === 0, 'startTimer() resets timerElapsed to 0');
+
+// getTimeString() while running — should produce a formatted string
+let runningTime = getTimeString();
+assert(runningTime.length === 5, `getTimeString() while running returns "MM:SS" format (got "${runningTime}")`);
+assert(runningTime.includes(':'), `getTimeString() while running contains ":"`);
+
+// Stop the timer
+stopTimer();
+assert(timerInterval === null, 'stopTimer() clears timerInterval');
+assert(timerStart === null, 'stopTimer() sets timerStart to null');
+assert(timerElapsed >= 0, `stopTimer() captures elapsed time (got ${timerElapsed}ms)`);
+
+// getTimeString() after stop should return stable value
+let t1 = getTimeString();
+let t2 = getTimeString();
+assertEqual(t1, t2, 'getTimeString() returns stable value after stopTimer()');
+
+// Restarting should reset
+let prevElapsed = timerElapsed;
+startTimer();
+assert(timerElapsed === 0, 'startTimer() resets timerElapsed on restart (was ' + prevElapsed + 'ms)');
+stopTimer();
+
+group('startTimer() idempotency');
+
+// Calling startTimer() multiple times should be safe
+startTimer();
+startTimer(); // second call should stop previous interval
+assert(timerInterval !== null, 'double startTimer() still has an interval');
+assert(timerElapsed === 0, 'double startTimer() resets elapsed');
+stopTimer();
+
+group('stopTimer() idempotency');
+
+stopTimer(); // already stopped
+stopTimer(); // should be safe
+assert(timerInterval === null, 'double stopTimer() — interval is null');
+assert(timerStart === null, 'double stopTimer() — timerStart is null');
+
+// ==================== SUMMARY ====================
+document.getElementById('summary').innerHTML =
+  `${passed} passed, ${failed} failed` +
+  (failed === 0 ? ' — ✅ All good!' : ' — ❌ Some tests failed');
+</script>
+</body>
+</html>

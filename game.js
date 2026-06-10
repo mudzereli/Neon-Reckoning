@@ -16,7 +16,7 @@ const CONFIG = {
 
   // Level up
   LEVEL_HP_GAIN: 2,
-  LEVEL_ATK_GAIN: 1,
+  LEVEL_ATK_GAIN: 0,
   LEVEL_XP_MULT: 1.5,
 
   // Room effects
@@ -28,7 +28,7 @@ const CONFIG = {
   // Injectors
   INJECTOR_HEAL_CHANCE: 0.75,
   INJECTOR_HEAL: { dice: 6, bonus: 2 },
-  INJECTOR_DAMAGE: { dice: 6, bonus: 2 },
+  INJECTOR_DAMAGE: { dice: 6, bonus: 4 },
 
   // Loot creds
   LOOT_CREDS_DICE: 20,
@@ -53,14 +53,92 @@ const CONFIG = {
 
   // Combat delay (ms)
   ENEMY_ATTACK_DELAY: 500,
+
+  // Defend stance
+  DEFEND_DEF_BONUS: 2,
+  DEFEND_EVD_BONUS: 1,
+  DEFEND_ATK_PENALTY: 2,
 };
+
+// ==================== TIMER ====================
+let timerStart = null;
+let timerInterval = null;
+let timerElapsed = 0;
+
+function formatTime(ms) {
+  let totalSec = Math.floor(ms / 1000);
+  let min = String(Math.floor(totalSec / 60)).padStart(2, '0');
+  let sec = String(totalSec % 60).padStart(2, '0');
+  return `${min}:${sec}`;
+}
+
+function updateTimerDisplay() {
+  let el = document.getElementById('timerDisplay');
+  if (!el) return;
+  if (timerStart !== null) {
+    timerElapsed = Date.now() - timerStart;
+  }
+  el.textContent = `⏱ ${formatTime(timerElapsed)}`;
+}
+
+function startTimer() {
+  stopTimer();
+  timerStart = Date.now();
+  timerElapsed = 0;
+  updateTimerDisplay();
+  timerInterval = setInterval(updateTimerDisplay, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  if (timerStart !== null) {
+    timerElapsed = Date.now() - timerStart;
+    timerStart = null;
+  }
+}
+
+function getTimeString() {
+  if (timerStart !== null) {
+    return formatTime(Date.now() - timerStart);
+  }
+  return formatTime(timerElapsed);
+}
 
 // ==================== DATA POOLS ====================
 const ENEMY_POOL = [
-  { name: 'Glitch Drone',    emoji: '🤖', hp: 20, atk: 2, def: 2, evd: 1, dice: 4, xp: 3, creds: 15 },
-  { name: 'Chrome Ganger',   emoji: '🧟', hp: 24, atk: 3, def: 3, evd: 2, dice: 6, xp: 5, creds: 25 },
-  { name: 'CorpSec Enforcer',emoji: '👮', hp: 28, atk: 4, def: 3, evd: 2, dice: 6, xp: 7, creds: 35 },
-  { name: 'Rogue Drone Swarm',emoji:'🐝', hp: 22, atk: 3, def: 2, evd: 3, dice: 8, xp: 6, creds: 30 },
+  // Level 1 — weak, low everything
+  { name: 'Glitch Drone',     emoji: '🤖', hp: 18, atk: 2, def: 1, evd: 1, dice: 4, xp: 2, creds: 10 },
+  { name: 'Rogue Drone Swarm',emoji: '🐝', hp: 20, atk: 2, def: 1, evd: 2, dice: 6, xp: 4, creds: 15 },
+
+  // Level 2 — tanky, weak hits
+  { name: 'Chrome Ganger',    emoji: '🧟', hp: 30, atk: 2, def: 4, evd: 1, dice: 4, xp: 5, creds: 20 },
+
+  // Level 3 — balanced soldier
+  { name: 'CorpSec Enforcer', emoji: '👮', hp: 26, atk: 3, def: 3, evd: 2, dice: 6, xp: 7, creds: 30 },
+
+  // Level 4 — glass cannon (low HP, high ATK/evasion)
+  { name: 'Data Shade',       emoji: '👤', hp: 16, atk: 4, def: 1, evd: 4, dice: 8, xp: 7, creds: 30 },
+
+  // Level 5 — mid-range pair
+  { name: 'Synth-Cultists',   emoji: '👥', hp: 28, atk: 3, def: 3, evd: 3, dice: 6, xp: 9, creds: 40 },
+
+  // Level 6 — offensive specialist
+  { name: 'Rocker-Hacker',    emoji: '👨‍🎤', hp: 24, atk: 4, def: 2, evd: 4, dice: 8, xp: 11, creds: 50 },
+
+  // Level 7 — slippery striker
+  { name: 'Ghost Runner',     emoji: '👻', hp: 20, atk: 5, def: 1, evd: 6, dice: 8, xp: 12, creds: 55 },
+
+  // Level 8 — heavy hitter, easy to hit
+  { name: 'Cybergorgon',      emoji: '🐉', hp: 40, atk: 5, def: 4, evd: 1, dice: 10, xp: 14, creds: 65 },
+
+  // Level 9 — well-rounded elite
+  { name: 'Apex Warden',      emoji: '🧿', hp: 38, atk: 5, def: 4, evd: 3, dice: 8, xp: 15, creds: 70 },
+
+  // Level 10 — endgame bruiser
+  { name: 'Plague Wraith',    emoji: '🦠', hp: 50, atk: 6, def: 5, evd: 0, dice: 12, xp: 18, creds: 85 },
 ];
 
 const BOSSES = [
@@ -95,35 +173,35 @@ const WEAPON_POOL = [
 
 const ARMOR_POOL = [
   // Pure DEF
-  { name: 'Exo Frame',     def: 5, evd: -1 },
-  { name: 'Plated Jacket', def: 4, evd: 0 },
-  { name: 'Flak Vest',     def: 3, evd: 0 },
-  { name: 'Crash Padding', def: 3, evd: -1 },
+  { name: 'Exo Frame',     def: 6, evd: 0 },
+  { name: 'Plated Jacket', def: 5, evd: 0 },
+  { name: 'Flak Vest',     def: 4, evd: 0 },
+  { name: 'Crash Padding', def: 3, evd: 0 },
   { name: 'Kevlar Vest',   def: 2, evd: 0 },
-  { name: 'Grav Harness',  def: 2, evd: -1 },
+  { name: 'Grav Harness',  def: 1, evd: 0 },
 
   // Pure EVD
-  { name: 'Ghost Mantle',  def: -1, evd: 5 },
-  { name: 'Phase Cloak',   def: 0, evd: 4 },
-  { name: 'Reflex Mesh',   def: -1, evd: 4 },
+  { name: 'Ghost Mantle',  def: 0, evd: 12 },
+  { name: 'Phase Cloak',   def: 0, evd: 8 },
+  { name: 'Reflex Mesh',   def: 0, evd: 4 },
   { name: 'Thermal Cloak', def: 0, evd: 2 },
 
   // Balanced
-  { name: 'Hardlight Field', def: 2, evd: 2 },
-  { name: 'Scav Plating',    def: 2, evd: 1 },
-  { name: 'Magnet Shield',   def: 1, evd: 2 },
+  { name: 'Hardlight Field', def: 4, evd: 7 },
+  { name: 'Scav Plating',    def: 3, evd: 5 },
+  { name: 'Magnet Shield',   def: 2, evd: 3 },
   { name: 'Nano-Weave Suit', def: 1, evd: 1 },
 
   // Trade-offs
-  { name: 'Riot Shield',     def: 3, evd: -2 },
-  { name: 'Chainmail Tarp',  def: 4, evd: -2 },
-  { name: 'Glass Cannon Rig', def: -2, evd: 5 },
-  { name: 'Servo Harness',   def: 5, evd: -3 },
+  { name: 'Riot Shield',      def:  8, evd: -2 },
+  { name: 'Chainmail Tarp',   def:  7, evd: -1 },
+  { name: 'Glass Cannon Rig', def: -3, evd: 14 },
+  { name: 'Servo Harness',    def: -2, evd: 13 },
 ];
 
 // ==================== VAULT GEAR ====================
 const VAULT_WEAPON = { name: 'Synth-Katana', type: 'weapon', dice: 10, bonus: 2 };
-const VAULT_ARMOR = { name: 'Chrome Carapace', type: 'armor', def: 6, evd: 1 };
+const VAULT_ARMOR = { name: 'Chrome Carapace', type: 'armor', def: 10, evd: 1 };
 
 const VAULT_TYPES = new Set(['vault','vault2','vault3','vault4','vault5','vault6','vault7']);
 
@@ -139,7 +217,7 @@ const VAULT_ROOMS = [
 
 const VAULT_LOOT = {
   vault:  { item: { ...VAULT_WEAPON }, msg: '🏦 Armory vault breached! Found Synth-Katana (d10+2).' },
-  vault2: { item: { ...VAULT_ARMOR },  msg: '🏦 DEF vault breached! Found Chrome Carapace (+6 DEF / +1 EVD).' },
+  vault2: { item: { ...VAULT_ARMOR },  msg: '🏦 DEF vault breached! Found Chrome Carapace (+10 DEF / +1 EVD).' },
   vault3: { item: { name: 'Room Scanner', type: 'scanner' },      msg: '🏦 Scanner vault breached! Found a Room Scanner — reveals adjacent rooms on the grid.' },
   vault4: { item: { name: 'Backup Module', type: 'revive' },      msg: '🏦 Med vault breached! Found a Backup Module — prevents death once.' },
   vault5: { item: { name: 'Chem Analyzer', type: 'analyzer' },    msg: '🏦 Chem vault breached! Found a Chem Analyzer — reveals injector effects.' },
@@ -160,7 +238,7 @@ let state = {
   xp: 0, xpToLevel: CONFIG.START_XP_TO_LEVEL,
   creds: 0,
   weapon: { name: CONFIG.START_WEAPON.name, dice: CONFIG.START_WEAPON.dice, bonus: CONFIG.START_WEAPON.bonus },
-  armor: { name: CONFIG.START_ARMOR.name, def: CONFIG.START_ARMOR.def },
+  armor: { name: CONFIG.START_ARMOR.name, def: CONFIG.START_ARMOR.def, evd: CONFIG.START_ARMOR.evd },
   inventory: [],   // [{name, type:'weapon'|'armor'|'heal', ...}]
   hasKey: false,
   bossDefeated: false,
@@ -179,6 +257,7 @@ let state = {
   vaultRoom5: null, // analyzer vault
   vaultRoom6: null, // trap scanner vault
   vaultRoom7: null, // heal scanner vault
+  inventoryFilters: new Set(['weapon', 'armor', 'heal', 'passive']),
 };
 
 // ==================== ROOM GENERATION ====================
@@ -254,9 +333,18 @@ function generateFloor() {
       state.grid[y][x] = { type: t, variant: pickVariant() };
     }
   }
+
+  // Starting room always has loot
+  state.grid[0][0].type = 'loot';
 }
 
 // ==================== ENEMIES ====================
+/**
+ * Generates a random enemy scaled to the current floor level.
+ * Pulls from the available enemy pool (unlocking tougher enemies as the player levels up),
+ * then applies level-based scaling to HP, XP, and credits.
+ * @returns {{ name: string, emoji: string, hp: number, maxHp: number, atk: number, def: number, evd: number, dice: number, xp: number, creds: number }}
+ */
 function getEnemyForFloor() {
   let pool = ENEMY_POOL.slice(0, Math.min(state.level + 1, ENEMY_POOL.length));
   let e = pool[Math.floor(Math.random() * pool.length)];
@@ -287,8 +375,8 @@ let defending = false;
 
 function startCombat(enemy) {
   combatEnemy = { ...enemy };
-  let panel = document.getElementById('combatPanel');
-  panel.classList.add('active');
+  document.getElementById('inv').style.display = 'none';
+  document.getElementById('combatPanel').style.display = 'flex';
   document.getElementById('fleeBtn').disabled = !!enemy._isBoss;
   updateCombatPanel();
 }
@@ -301,26 +389,70 @@ function updateCombatPanel() {
   document.getElementById('combatEnemyHp').textContent = `${e.hp}/${e.maxHp}`;
   document.getElementById('combatEnemyHpBar').style.width = `${(e.hp/e.maxHp)*100}%`;
   document.getElementById('combatEnemyAtk').textContent = `d${e.dice}+${e.atk}`;
-  document.getElementById('combatEnemyEvd').textContent = e.evd;
   document.getElementById('combatEnemyDef').textContent = e.def;
-  let totalAtk = state.atk + state.weapon.bonus;
-  let atkBonus = defending ? -1 : 0;
-  let defBonus = defending ? 1 : 0;
-  document.getElementById('combatPlayerAtk').textContent = `d${state.weapon.dice}+${totalAtk + atkBonus}${defending ? ' (−1)' : ''}`;
-  document.getElementById('combatPlayerEvd').textContent = state.evd;
-  document.getElementById('combatPlayerDef').textContent = state.def + defBonus;
+  document.getElementById('combatEnemyEvd').textContent = e.evd;
+
+  // Show injector button if player has injectors
+  let injectors = state.inventory.filter(i => i.type === 'heal');
+  let btn = document.getElementById('injectBtn');
+  if (injectors.length > 0) {
+    let hasAnalyzer = state.inventory.some(i => i.type === 'analyzer');
+    if (hasAnalyzer) {
+      let best = Math.max(...injectors.map(i => i.amount));
+      btn.textContent = `💉 Injector (+${best} HP)`;
+    } else {
+      btn.textContent = `💉 Injector (${injectors.length})`;
+    }
+    btn.style.display = '';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function useCombatInjector() {
+  if (!combatEnemy || state.gameOver) return;
+  let injectors = state.inventory.filter(i => i.type === 'heal');
+  if (injectors.length === 0) return;
+
+  let idx;
+  let hasAnalyzer = state.inventory.some(i => i.type === 'analyzer');
+  if (hasAnalyzer) {
+    // Find the best healing injector (highest positive amount)
+    let best = injectors.filter(i => i.amount > 0).sort((a, b) => b.amount - a.amount)[0];
+    if (!best) {
+      addLog('🔬 No safe injectors detected.', 'msg');
+      return;
+    }
+    idx = state.inventory.indexOf(best);
+  } else {
+    // Random injector — could be risky
+    idx = state.inventory.indexOf(injectors[Math.floor(Math.random() * injectors.length)]);
+  }
+
+  let item = state.inventory[idx];
+  state.hp = Math.min(state.maxHp, state.hp + item.amount);
+  if (item.amount > 0) {
+    addLog(`💉 Used an Injector. +${item.amount} HP.`, 'info');
+  } else {
+    addLog(`⚠ Injector backfired! ${item.amount} HP.`, 'danger');
+  }
+  state.inventory.splice(idx, 1);
+  if (state.hp <= 0) { state.hp = 0; gameOverLose(); return; }
+  updateCombatPanel();
+  render();
 }
 
 function endCombat() {
   combatEnemy = null;
   defending = false;
-  document.getElementById('combatPanel').classList.remove('active');
+  document.getElementById('combatPanel').style.display = 'none';
+  document.getElementById('inv').style.display = '';
 }
 
 function playerAttack() {
   if (!combatEnemy) return;
   let e = combatEnemy;
-  let totalAtk = state.atk + state.weapon.bonus + (defending ? -1 : 0);
+  let totalAtk = state.atk + state.weapon.bonus + (defending ? -CONFIG.DEFEND_ATK_PENALTY : 0);
   let dmgRoll = roll(state.weapon.dice) + totalAtk;
 
   if (dmgRoll <= e.evd) {
@@ -356,25 +488,27 @@ function playerAttack() {
 
   // Enemy counter-attacks after a short delay
   updateCombatPanel();
-  setTimeout(() => enemyAttack(), 500);
+  setTimeout(() => enemyAttack(), CONFIG.ENEMY_ATTACK_DELAY);
 }
 
 function enemyAttack() {
   if (!combatEnemy) return;
   let e = combatEnemy;
   let dmgRoll = roll(e.dice) + e.atk;
-  let effectiveDef = state.def + (defending ? 1 : 0);
-  let defLabel = defending ? `${state.def}+1` : state.def;
+  let effectiveDef = state.def + (defending ? CONFIG.DEFEND_DEF_BONUS : 0);
+  let defLabel = defending ? `${state.def}+${CONFIG.DEFEND_DEF_BONUS}` : state.def;
+  let effectiveEvd = state.evd + (defending ? CONFIG.DEFEND_EVD_BONUS : 0);
+  let evdLabel = defending ? `${state.evd}+${CONFIG.DEFEND_EVD_BONUS}` : state.evd;
   defending = false;
 
-  if (dmgRoll <= state.evd) {
-    addLog(`💨 You evade ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} ≤ EVD ${state.evd})`, 'info');
+  if (dmgRoll <= effectiveEvd) {
+    addLog(`💨 You evade ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} ≤ EVD ${evdLabel})`, 'info');
   } else if (dmgRoll <= effectiveDef) {
-    addLog(`🛡️ Your armor blocks ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} > EVD ${state.evd}, ≤ DEF ${defLabel})`, 'info');
+    addLog(`🛡️ Your armor blocks ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} > EVD ${evdLabel}, ≤ DEF ${defLabel})`, 'info');
   } else {
     let dmg = dmgRoll - effectiveDef;
     state.hp -= dmg;
-    addLog(`💥 ${e.name} hits you for <b>${dmg}</b> damage. (d${e.dice}+${e.atk}=${dmgRoll} - ${defLabel} DEF)`, 'danger');
+    addLog(`💥 ${e.name} hits you for <b>${dmg}</b> damage. (d${e.dice}+${e.atk}=${dmgRoll} > EVD ${evdLabel}, - ${defLabel} DEF)`, 'danger');
   }
 
   if (state.hp <= 0) {
@@ -391,7 +525,7 @@ function enemyAttack() {
 function playerDefend() {
   if (!combatEnemy) return;
   defending = true;
-  addLog('🛡️ Defensive stance: +1 DEF, −1 ATK.', 'info');
+  addLog(`🛡️ Defensive stance: +${CONFIG.DEFEND_DEF_BONUS} DEF, +${CONFIG.DEFEND_EVD_BONUS} EVD, −${CONFIG.DEFEND_ATK_PENALTY} ATK.`, 'info');
   updateCombatPanel();
   playerAttack();
 }
@@ -436,7 +570,9 @@ function enterRoom(x, y) {
   // Boss room - check if locked
   if (room.type === 'boss') {
     if (room.locked && !state.hasKey) {
+      state.bossRevealed = true;
       addLog('🔒 The boss chamber is locked. You need a key.', 'danger');
+      render();
       return;
     }
     if (room.locked && state.hasKey) {
@@ -556,23 +692,18 @@ function searchRoom() {
 
 function showBossPrompt() {
   let boss = getBoss();
-  // Use combat panel to show boss preview with Accept/Decline
-  let panel = document.getElementById('combatPanel');
-  panel.classList.add('active');
+  document.getElementById('inv').style.display = 'none';
+  document.getElementById('combatPanel').style.display = 'flex';
   document.getElementById('combatEnemyName').textContent = boss.name + ' (BOSS)';
   document.getElementById('combatEnemyDesc').textContent = boss.desc;
   document.getElementById('combatEnemyHp').textContent = `${boss.hp}/${boss.hp}`;
   document.getElementById('combatEnemyHpBar').style.width = '100%';
   document.getElementById('combatEnemyAtk').textContent = `d${boss.dice}+${boss.atk}`;
-  document.getElementById('combatEnemyEvd').textContent = boss.evd;
   document.getElementById('combatEnemyDef').textContent = boss.def;
-  let totalAtk = state.atk + state.weapon.bonus;
-  document.getElementById('combatPlayerAtk').textContent = `d${state.weapon.dice}+${totalAtk}`;
-  document.getElementById('combatPlayerEvd').textContent = state.evd;
-  document.getElementById('combatPlayerDef').textContent = state.def;
+  document.getElementById('combatEnemyEvd').textContent = boss.evd;
   // Replace buttons
-  let btnRow = panel.querySelector('.btn-row');
-  btnRow.innerHTML = `
+  let panel = document.getElementById('combatPanel');
+  panel.querySelector('.btn-row').innerHTML = `
     <button class="btn danger" onclick="acceptBossFight()">⚔ Challenge</button>
     <button class="btn" onclick="declineBoss()">↩ Step Back</button>
   `;
@@ -596,8 +727,16 @@ function acceptBossFight() {
 }
 
 function declineBoss() {
-  document.getElementById('combatPanel').classList.remove('active');
-  document.getElementById('combatPanel')._pendingBoss = null;
+  let panel = document.getElementById('combatPanel');
+  panel._pendingBoss = null;
+  document.getElementById('combatPanel').style.display = 'none';
+  document.getElementById('inv').style.display = '';
+  // Restore normal combat buttons so they don't stay as "Challenge / Step Back"
+  panel.querySelector('.btn-row').innerHTML = `
+    <button class="btn danger" onclick="playerAttack()">⚔ <u>A</u>ttack</button>
+    <button class="btn" onclick="playerDefend()">🛡️ <u>D</u>efend</button>
+    <button class="btn" id="fleeBtn" onclick="playerFlee()">↩ <u>F</u>lee</button>
+  `;
   addLog('You step back from the boss chamber. Prepare yourself.', 'info');
 }
 
@@ -638,7 +777,8 @@ function checkLevelUp() {
     state.maxHp += CONFIG.LEVEL_HP_GAIN;
     state.hp = state.maxHp; // full heal on level up
     state.atk += CONFIG.LEVEL_ATK_GAIN;
-    addLog(`⬆ LEVEL UP! You are now level ${state.level}. +6 max HP, +1 ATK, fully healed.`, 'win');
+    let atkMsg = CONFIG.LEVEL_ATK_GAIN > 0 ? `, +${CONFIG.LEVEL_ATK_GAIN} ATK` : '';
+    addLog(`⬆ LEVEL UP! You are now level ${state.level}. +${CONFIG.LEVEL_HP_GAIN} max HP${atkMsg}, fully healed.`, 'win');
   }
 }
 
@@ -656,6 +796,7 @@ function gameOverLose() {
   }
 
   state.gameOver = true;
+  stopTimer();
   endCombat();
   addLog('💀 CONNECTION TERMINATED. You died in the Spire.', 'danger');
   render();
@@ -663,6 +804,7 @@ function gameOverLose() {
     <div class="modal">
       <h2>☠ FLATLINED</h2>
       <p>Your body is another data-ghost in the Spire. Floor reached: <b>${state.level}</b></p>
+      <p style="color:#7a9aaa">⏱ Time: ${getTimeString()}</p>
       <p style="color:#ffcc00">Creds lost: ${state.creds}¢</p>
       <button class="btn danger" onclick="newGame()">⟳ JACK IN AGAIN</button>
     </div>
@@ -671,6 +813,7 @@ function gameOverLose() {
 
 function gameOverWin() {
   state.gameOver = true;
+  stopTimer();
   state.bossDefeated = true;
   addLog('🏆 BOSS DEFEATED! The Spire\'s grip on this sector is broken... for now.', 'win');
   render();
@@ -678,6 +821,7 @@ function gameOverWin() {
     <div class="modal">
       <h2>🏆 SPIRE BREAKER</h2>
       <p>You destroyed the boss and escaped with <b>${state.creds}¢</b> at level <b>${state.level}</b>.</p>
+      <p style="color:#39ff14">⏱ Time: ${getTimeString()}</p>
       <p style="color:#39ff14">The Neon Reckoning spreads...</p>
       <button class="btn gold" onclick="newGame()">⟳ NEW RUN</button>
     </div>
@@ -748,26 +892,59 @@ function updateKeyStatus() {
   }
 }
 
+function toggleInventoryFilter(type) {
+  if (type === 'all') {
+    state.inventoryFilters = new Set(['weapon', 'armor', 'heal', 'passive']);
+  } else {
+    if (state.inventoryFilters.has(type)) {
+      state.inventoryFilters.delete(type);
+    } else {
+      state.inventoryFilters.add(type);
+    }
+  }
+  render();
+}
+
+function getItemTypeLabel(item) {
+  if (item.type === 'weapon') return 'weapon';
+  if (item.type === 'armor') return 'armor';
+  if (item.type === 'revive') return 'passive';
+  if (PASSIVE_ITEM_ICONS[item.type]) return 'passive';
+  if (item.type === 'heal') return 'heal';
+  return 'other';
+}
+
 function renderInventory() {
-  let inv = document.getElementById('inv');
+  let inv = document.getElementById('invItems');
+  // Update filter chip active state — multi-select
+  let allActive = ['weapon', 'armor', 'heal', 'passive'].every(t => state.inventoryFilters.has(t));
+  document.querySelectorAll('.inv-filter').forEach(el => {
+    if (el.dataset.filter === 'all') {
+      el.classList.toggle('active', allActive);
+    } else {
+      el.classList.toggle('active', state.inventoryFilters.has(el.dataset.filter));
+    }
+  });
   let w = state.weapon;
   let a = state.armor;
   let html = '';
-  // Equipped gear
-  let wDice = `d${w.dice}${w.bonus?'+'+w.bonus:''}`;
-  html += `<div class="inv-item" style="color:#ff8c42">
-    <span>⚔️ ${w.name} <span style="color:#ff8c4288">[${wDice}]</span></span>
+  // Equipped gear (always visible) — single row, stats omitted (see STATS panel)
+  html += `<div class="inv-item" style="display:flex;gap:8px">
+    <span style="color:#ff8c42;flex:1">⚔️ ${w.name}</span>
+    <span style="color:#05d5ff;flex:1;text-align:right">🛡️ ${a.name}</span>
   </div>`;
-  let defStr = a.def !== 0 ? (a.def > 0 ? '+' : '') + a.def + ' DEF' : '';
-  let evdStr = a.evd !== 0 ? (a.evd > 0 ? '+' : '') + a.evd + ' EVD' : '';
-  let sep = defStr && evdStr ? ' / ' : '';
-  html += `<div class="inv-item" style="color:#05d5ff">
-    <span>🛡️ ${a.name} <span style="color:#05d5ff88">[${defStr}${sep}${evdStr || '—'}]</span></span>
-  </div>`;
-  if (state.inventory.length === 0) {
+
+  // Filter items — multi-select
+  let filtered = state.inventory.filter((item) => {
+    return state.inventoryFilters.has(getItemTypeLabel(item));
+  });
+
+  if (filtered.length === 0) {
     html += '<div style="color:#4a6a7a;font-size:.7rem;padding-top:4px">no items</div>';
   } else {
-    html += state.inventory.map((item, i) => {
+    // Use original index for actions so [equip]/[use]/[drop] work correctly
+    html += filtered.map((item, fi) => {
+      let i = state.inventory.indexOf(item);
       let label, stat, action;
       if (item.type === 'weapon') {
         label = item.name;
@@ -857,7 +1034,34 @@ function renderGrid() {
   let grid = document.getElementById('grid');
   grid.innerHTML = '';
 
+  // Set 11 columns: 1 label + 10 grid cells
+  grid.style.gridTemplateColumns = '16px ' + '1fr '.repeat(GRID_SIZE).trim();
+
+  // Top-left corner (empty)
+  let tl = document.createElement('div');
+  tl.style.cssText = 'font-size:.55rem;color:#3a5a6a;display:flex;align-items:center;justify-content:center';
+  grid.appendChild(tl);
+
+  // Column labels (0-9)
+  for (let x = 0; x < GRID_SIZE; x++) {
+    let lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:.55rem;color:#3a5a6a;display:flex;align-items:center;justify-content:center';
+    lbl.textContent = x;
+    grid.appendChild(lbl);
+  }
+
+  // Hoist inventory checks — computed once, not per cell
+  let hasTrapVision = state.inventory.some(i => i.type === 'trap-vision');
+  let hasHealVision = state.inventory.some(i => i.type === 'heal-vision');
+  let hasScanner = state.inventory.some(i => i.type === 'scanner');
+
   for (let y = 0; y < GRID_SIZE; y++) {
+    // Row label
+    let rl = document.createElement('div');
+    rl.style.cssText = 'font-size:.55rem;color:#3a5a6a;display:flex;align-items:center;justify-content:center';
+    rl.textContent = y;
+    grid.appendChild(rl);
+
     for (let x = 0; x < GRID_SIZE; x++) {
       let cell = document.createElement('div');
       cell.className = 'cell';
@@ -866,8 +1070,6 @@ function renderGrid() {
       let dist = Math.abs(x - state.px) + Math.abs(y - state.py);
 
       let icon = '';
-      let hasTrapVision = state.inventory.some(i => i.type === 'trap-vision');
-      let hasHealVision = state.inventory.some(i => i.type === 'heal-vision');
       if (x === state.px && y === state.py) {
         icon = '⬡';
         cell.classList.add('current');
@@ -881,7 +1083,6 @@ function renderGrid() {
         else if (room.type === 'trap') { icon = '·'; }
         else icon = '·';
       } else if (state.bossRevealed && x === state.bossRoom.x && y === state.bossRoom.y) {
-        // Boss revealed by intel
         icon = state.grid[y][x].locked ? '🔒' : '◆';
       }
 
@@ -889,7 +1090,6 @@ function renderGrid() {
       if (dist === 1 && !state.gameOver) {
         cell.classList.add('adjacent');
         if (!state.visited.has(key) && !(state.bossRevealed && x===state.bossRoom.x && y===state.bossRoom.y) && !(state.keyRevealed && x===state.keyRoom.x && y===state.keyRoom.y)) {
-          let hasScanner = state.inventory.some(i => i.type === 'scanner');
           if (hasScanner) {
             if (room.type === 'boss') icon = '🔒';
             else if (room.type === 'key') icon = '🔑';
@@ -1138,6 +1338,7 @@ function newGame() {
     vaultRoom5: null,
     vaultRoom6: null,
     vaultRoom7: null,
+    inventoryFilters: new Set(['weapon', 'armor', 'heal', 'passive']),
   };
   combatEnemy = null;
   endCombat();
@@ -1145,6 +1346,7 @@ function newGame() {
   generateFloor();
   document.getElementById('log').innerHTML = '';
   addLog('System boot: Welcome to the Spire, runner. Find the key. Unlock the boss chamber. Survive.', 'msg');
+  startTimer();
   render();
 }
 
