@@ -53,6 +53,11 @@ const CONFIG = {
 
   // Combat delay (ms)
   ENEMY_ATTACK_DELAY: 500,
+
+  // Defend stance
+  DEFEND_DEF_BONUS: 2,
+  DEFEND_EVD_BONUS: 1,
+  DEFEND_ATK_PENALTY: 2,
 };
 
 // ==================== TIMER ====================
@@ -328,6 +333,9 @@ function generateFloor() {
       state.grid[y][x] = { type: t, variant: pickVariant() };
     }
   }
+
+  // Starting room always has loot
+  state.grid[0][0].type = 'loot';
 }
 
 // ==================== ENEMIES ====================
@@ -367,8 +375,8 @@ let defending = false;
 
 function startCombat(enemy) {
   combatEnemy = { ...enemy };
-  let panel = document.getElementById('combatPanel');
-  panel.classList.add('active');
+  document.getElementById('inv').style.display = 'none';
+  document.getElementById('combatPanel').style.display = 'flex';
   document.getElementById('fleeBtn').disabled = !!enemy._isBoss;
   updateCombatPanel();
 }
@@ -383,18 +391,68 @@ function updateCombatPanel() {
   document.getElementById('combatEnemyAtk').textContent = `d${e.dice}+${e.atk}`;
   document.getElementById('combatEnemyDef').textContent = e.def;
   document.getElementById('combatEnemyEvd').textContent = e.evd;
+
+  // Show injector button if player has injectors
+  let injectors = state.inventory.filter(i => i.type === 'heal');
+  let btn = document.getElementById('injectBtn');
+  if (injectors.length > 0) {
+    let hasAnalyzer = state.inventory.some(i => i.type === 'analyzer');
+    if (hasAnalyzer) {
+      let best = Math.max(...injectors.map(i => i.amount));
+      btn.textContent = `💉 Injector (+${best} HP)`;
+    } else {
+      btn.textContent = `💉 Injector (${injectors.length})`;
+    }
+    btn.style.display = '';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function useCombatInjector() {
+  if (!combatEnemy || state.gameOver) return;
+  let injectors = state.inventory.filter(i => i.type === 'heal');
+  if (injectors.length === 0) return;
+
+  let idx;
+  let hasAnalyzer = state.inventory.some(i => i.type === 'analyzer');
+  if (hasAnalyzer) {
+    // Find the best healing injector (highest positive amount)
+    let best = injectors.filter(i => i.amount > 0).sort((a, b) => b.amount - a.amount)[0];
+    if (!best) {
+      addLog('🔬 No safe injectors detected.', 'msg');
+      return;
+    }
+    idx = state.inventory.indexOf(best);
+  } else {
+    // Random injector — could be risky
+    idx = state.inventory.indexOf(injectors[Math.floor(Math.random() * injectors.length)]);
+  }
+
+  let item = state.inventory[idx];
+  state.hp = Math.min(state.maxHp, state.hp + item.amount);
+  if (item.amount > 0) {
+    addLog(`💉 Used an Injector. +${item.amount} HP.`, 'info');
+  } else {
+    addLog(`⚠ Injector backfired! ${item.amount} HP.`, 'danger');
+  }
+  state.inventory.splice(idx, 1);
+  if (state.hp <= 0) { state.hp = 0; gameOverLose(); return; }
+  updateCombatPanel();
+  render();
 }
 
 function endCombat() {
   combatEnemy = null;
   defending = false;
-  document.getElementById('combatPanel').classList.remove('active');
+  document.getElementById('combatPanel').style.display = 'none';
+  document.getElementById('inv').style.display = '';
 }
 
 function playerAttack() {
   if (!combatEnemy) return;
   let e = combatEnemy;
-  let totalAtk = state.atk + state.weapon.bonus + (defending ? -1 : 0);
+  let totalAtk = state.atk + state.weapon.bonus + (defending ? -CONFIG.DEFEND_ATK_PENALTY : 0);
   let dmgRoll = roll(state.weapon.dice) + totalAtk;
 
   if (dmgRoll <= e.evd) {
@@ -437,18 +495,20 @@ function enemyAttack() {
   if (!combatEnemy) return;
   let e = combatEnemy;
   let dmgRoll = roll(e.dice) + e.atk;
-  let effectiveDef = state.def + (defending ? 1 : 0);
-  let defLabel = defending ? `${state.def}+1` : state.def;
+  let effectiveDef = state.def + (defending ? CONFIG.DEFEND_DEF_BONUS : 0);
+  let defLabel = defending ? `${state.def}+${CONFIG.DEFEND_DEF_BONUS}` : state.def;
+  let effectiveEvd = state.evd + (defending ? CONFIG.DEFEND_EVD_BONUS : 0);
+  let evdLabel = defending ? `${state.evd}+${CONFIG.DEFEND_EVD_BONUS}` : state.evd;
   defending = false;
 
-  if (dmgRoll <= state.evd) {
-    addLog(`💨 You evade ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} ≤ EVD ${state.evd})`, 'info');
+  if (dmgRoll <= effectiveEvd) {
+    addLog(`💨 You evade ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} ≤ EVD ${evdLabel})`, 'info');
   } else if (dmgRoll <= effectiveDef) {
-    addLog(`🛡️ Your armor blocks ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} > EVD ${state.evd}, ≤ DEF ${defLabel})`, 'info');
+    addLog(`🛡️ Your armor blocks ${e.name}! (d${e.dice}+${e.atk}=${dmgRoll} > EVD ${evdLabel}, ≤ DEF ${defLabel})`, 'info');
   } else {
     let dmg = dmgRoll - effectiveDef;
     state.hp -= dmg;
-    addLog(`💥 ${e.name} hits you for <b>${dmg}</b> damage. (d${e.dice}+${e.atk}=${dmgRoll} - ${defLabel} DEF)`, 'danger');
+    addLog(`💥 ${e.name} hits you for <b>${dmg}</b> damage. (d${e.dice}+${e.atk}=${dmgRoll} > EVD ${evdLabel}, - ${defLabel} DEF)`, 'danger');
   }
 
   if (state.hp <= 0) {
@@ -465,7 +525,7 @@ function enemyAttack() {
 function playerDefend() {
   if (!combatEnemy) return;
   defending = true;
-  addLog('🛡️ Defensive stance: +1 DEF, −1 ATK.', 'info');
+  addLog(`🛡️ Defensive stance: +${CONFIG.DEFEND_DEF_BONUS} DEF, +${CONFIG.DEFEND_EVD_BONUS} EVD, −${CONFIG.DEFEND_ATK_PENALTY} ATK.`, 'info');
   updateCombatPanel();
   playerAttack();
 }
@@ -632,9 +692,8 @@ function searchRoom() {
 
 function showBossPrompt() {
   let boss = getBoss();
-  // Use combat panel to show boss preview with Accept/Decline
-  let panel = document.getElementById('combatPanel');
-  panel.classList.add('active');
+  document.getElementById('inv').style.display = 'none';
+  document.getElementById('combatPanel').style.display = 'flex';
   document.getElementById('combatEnemyName').textContent = boss.name + ' (BOSS)';
   document.getElementById('combatEnemyDesc').textContent = boss.desc;
   document.getElementById('combatEnemyHp').textContent = `${boss.hp}/${boss.hp}`;
@@ -643,8 +702,8 @@ function showBossPrompt() {
   document.getElementById('combatEnemyDef').textContent = boss.def;
   document.getElementById('combatEnemyEvd').textContent = boss.evd;
   // Replace buttons
-  let btnRow = panel.querySelector('.btn-row');
-  btnRow.innerHTML = `
+  let panel = document.getElementById('combatPanel');
+  panel.querySelector('.btn-row').innerHTML = `
     <button class="btn danger" onclick="acceptBossFight()">⚔ Challenge</button>
     <button class="btn" onclick="declineBoss()">↩ Step Back</button>
   `;
@@ -670,7 +729,8 @@ function acceptBossFight() {
 function declineBoss() {
   let panel = document.getElementById('combatPanel');
   panel._pendingBoss = null;
-  panel.classList.remove('active');
+  document.getElementById('combatPanel').style.display = 'none';
+  document.getElementById('inv').style.display = '';
   // Restore normal combat buttons so they don't stay as "Challenge / Step Back"
   panel.querySelector('.btn-row').innerHTML = `
     <button class="btn danger" onclick="playerAttack()">⚔ <u>A</u>ttack</button>
@@ -855,7 +915,7 @@ function getItemTypeLabel(item) {
 }
 
 function renderInventory() {
-  let inv = document.getElementById('inv');
+  let inv = document.getElementById('invItems');
   // Update filter chip active state — multi-select
   let allActive = ['weapon', 'armor', 'heal', 'passive'].every(t => state.inventoryFilters.has(t));
   document.querySelectorAll('.inv-filter').forEach(el => {
