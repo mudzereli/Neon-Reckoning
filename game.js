@@ -16,7 +16,7 @@ const CONFIG = {
 
   // Level up
   LEVEL_HP_GAIN: 2,
-  LEVEL_ATK_GAIN: 1,
+  LEVEL_ATK_GAIN: 0,
   LEVEL_XP_MULT: 1.5,
 
   // Room effects
@@ -28,7 +28,7 @@ const CONFIG = {
   // Injectors
   INJECTOR_HEAL_CHANCE: 0.75,
   INJECTOR_HEAL: { dice: 6, bonus: 2 },
-  INJECTOR_DAMAGE: { dice: 6, bonus: 2 },
+  INJECTOR_DAMAGE: { dice: 6, bonus: 4 },
 
   // Loot creds
   LOOT_CREDS_DICE: 20,
@@ -104,10 +104,36 @@ function getTimeString() {
 
 // ==================== DATA POOLS ====================
 const ENEMY_POOL = [
-  { name: 'Glitch Drone',    emoji: '🤖', hp: 20, atk: 2, def: 2, evd: 1, dice: 4, xp: 3, creds: 15 },
-  { name: 'Chrome Ganger',   emoji: '🧟', hp: 24, atk: 3, def: 3, evd: 2, dice: 6, xp: 5, creds: 25 },
-  { name: 'CorpSec Enforcer',emoji: '👮', hp: 28, atk: 4, def: 3, evd: 2, dice: 6, xp: 7, creds: 35 },
-  { name: 'Rogue Drone Swarm',emoji:'🐝', hp: 22, atk: 3, def: 2, evd: 3, dice: 8, xp: 6, creds: 30 },
+  // Level 1 — weak, low everything
+  { name: 'Glitch Drone',     emoji: '🤖', hp: 18, atk: 2, def: 1, evd: 1, dice: 4, xp: 2, creds: 10 },
+  { name: 'Rogue Drone Swarm',emoji: '🐝', hp: 20, atk: 2, def: 1, evd: 2, dice: 6, xp: 4, creds: 15 },
+
+  // Level 2 — tanky, weak hits
+  { name: 'Chrome Ganger',    emoji: '🧟', hp: 30, atk: 2, def: 4, evd: 1, dice: 4, xp: 5, creds: 20 },
+
+  // Level 3 — balanced soldier
+  { name: 'CorpSec Enforcer', emoji: '👮', hp: 26, atk: 3, def: 3, evd: 2, dice: 6, xp: 7, creds: 30 },
+
+  // Level 4 — glass cannon (low HP, high ATK/evasion)
+  { name: 'Data Shade',       emoji: '👤', hp: 16, atk: 4, def: 1, evd: 4, dice: 8, xp: 7, creds: 30 },
+
+  // Level 5 — mid-range pair
+  { name: 'Synth-Cultists',   emoji: '👥', hp: 28, atk: 3, def: 3, evd: 3, dice: 6, xp: 9, creds: 40 },
+
+  // Level 6 — offensive specialist
+  { name: 'Rocker-Hacker',    emoji: '👨‍🎤', hp: 24, atk: 4, def: 2, evd: 4, dice: 8, xp: 11, creds: 50 },
+
+  // Level 7 — slippery striker
+  { name: 'Ghost Runner',     emoji: '👻', hp: 20, atk: 5, def: 1, evd: 6, dice: 8, xp: 12, creds: 55 },
+
+  // Level 8 — heavy hitter, easy to hit
+  { name: 'Cybergorgon',      emoji: '🐉', hp: 40, atk: 5, def: 4, evd: 1, dice: 10, xp: 14, creds: 65 },
+
+  // Level 9 — well-rounded elite
+  { name: 'Apex Warden',      emoji: '🧿', hp: 38, atk: 5, def: 4, evd: 3, dice: 8, xp: 15, creds: 70 },
+
+  // Level 10 — endgame bruiser
+  { name: 'Plague Wraith',    emoji: '🦠', hp: 50, atk: 6, def: 5, evd: 0, dice: 12, xp: 18, creds: 85 },
 ];
 
 const BOSSES = [
@@ -142,35 +168,35 @@ const WEAPON_POOL = [
 
 const ARMOR_POOL = [
   // Pure DEF
-  { name: 'Exo Frame',     def: 5, evd: -1 },
-  { name: 'Plated Jacket', def: 4, evd: 0 },
-  { name: 'Flak Vest',     def: 3, evd: 0 },
-  { name: 'Crash Padding', def: 3, evd: -1 },
+  { name: 'Exo Frame',     def: 6, evd: 0 },
+  { name: 'Plated Jacket', def: 5, evd: 0 },
+  { name: 'Flak Vest',     def: 4, evd: 0 },
+  { name: 'Crash Padding', def: 3, evd: 0 },
   { name: 'Kevlar Vest',   def: 2, evd: 0 },
-  { name: 'Grav Harness',  def: 2, evd: -1 },
+  { name: 'Grav Harness',  def: 1, evd: 0 },
 
   // Pure EVD
-  { name: 'Ghost Mantle',  def: -1, evd: 5 },
-  { name: 'Phase Cloak',   def: 0, evd: 4 },
-  { name: 'Reflex Mesh',   def: -1, evd: 4 },
+  { name: 'Ghost Mantle',  def: 0, evd: 12 },
+  { name: 'Phase Cloak',   def: 0, evd: 8 },
+  { name: 'Reflex Mesh',   def: 0, evd: 4 },
   { name: 'Thermal Cloak', def: 0, evd: 2 },
 
   // Balanced
-  { name: 'Hardlight Field', def: 2, evd: 2 },
-  { name: 'Scav Plating',    def: 2, evd: 1 },
-  { name: 'Magnet Shield',   def: 1, evd: 2 },
+  { name: 'Hardlight Field', def: 4, evd: 7 },
+  { name: 'Scav Plating',    def: 3, evd: 5 },
+  { name: 'Magnet Shield',   def: 2, evd: 3 },
   { name: 'Nano-Weave Suit', def: 1, evd: 1 },
 
   // Trade-offs
-  { name: 'Riot Shield',     def: 3, evd: -2 },
-  { name: 'Chainmail Tarp',  def: 4, evd: -2 },
-  { name: 'Glass Cannon Rig', def: -2, evd: 5 },
-  { name: 'Servo Harness',   def: 5, evd: -3 },
+  { name: 'Riot Shield',      def:  8, evd: -2 },
+  { name: 'Chainmail Tarp',   def:  7, evd: -1 },
+  { name: 'Glass Cannon Rig', def: -3, evd: 14 },
+  { name: 'Servo Harness',    def: -2, evd: 13 },
 ];
 
 // ==================== VAULT GEAR ====================
 const VAULT_WEAPON = { name: 'Synth-Katana', type: 'weapon', dice: 10, bonus: 2 };
-const VAULT_ARMOR = { name: 'Chrome Carapace', type: 'armor', def: 6, evd: 1 };
+const VAULT_ARMOR = { name: 'Chrome Carapace', type: 'armor', def: 10, evd: 1 };
 
 const VAULT_TYPES = new Set(['vault','vault2','vault3','vault4','vault5','vault6','vault7']);
 
@@ -186,7 +212,7 @@ const VAULT_ROOMS = [
 
 const VAULT_LOOT = {
   vault:  { item: { ...VAULT_WEAPON }, msg: '🏦 Armory vault breached! Found Synth-Katana (d10+2).' },
-  vault2: { item: { ...VAULT_ARMOR },  msg: '🏦 DEF vault breached! Found Chrome Carapace (+6 DEF / +1 EVD).' },
+  vault2: { item: { ...VAULT_ARMOR },  msg: '🏦 DEF vault breached! Found Chrome Carapace (+10 DEF / +1 EVD).' },
   vault3: { item: { name: 'Room Scanner', type: 'scanner' },      msg: '🏦 Scanner vault breached! Found a Room Scanner — reveals adjacent rooms on the grid.' },
   vault4: { item: { name: 'Backup Module', type: 'revive' },      msg: '🏦 Med vault breached! Found a Backup Module — prevents death once.' },
   vault5: { item: { name: 'Chem Analyzer', type: 'analyzer' },    msg: '🏦 Chem vault breached! Found a Chem Analyzer — reveals injector effects.' },
@@ -305,6 +331,12 @@ function generateFloor() {
 }
 
 // ==================== ENEMIES ====================
+/**
+ * Generates a random enemy scaled to the current floor level.
+ * Pulls from the available enemy pool (unlocking tougher enemies as the player levels up),
+ * then applies level-based scaling to HP, XP, and credits.
+ * @returns {{ name: string, emoji: string, hp: number, maxHp: number, atk: number, def: number, evd: number, dice: number, xp: number, creds: number }}
+ */
 function getEnemyForFloor() {
   let pool = ENEMY_POOL.slice(0, Math.min(state.level + 1, ENEMY_POOL.length));
   let e = pool[Math.floor(Math.random() * pool.length)];
@@ -685,7 +717,8 @@ function checkLevelUp() {
     state.maxHp += CONFIG.LEVEL_HP_GAIN;
     state.hp = state.maxHp; // full heal on level up
     state.atk += CONFIG.LEVEL_ATK_GAIN;
-    addLog(`⬆ LEVEL UP! You are now level ${state.level}. +${CONFIG.LEVEL_HP_GAIN} max HP, +${CONFIG.LEVEL_ATK_GAIN} ATK, fully healed.`, 'win');
+    let atkMsg = CONFIG.LEVEL_ATK_GAIN > 0 ? `, +${CONFIG.LEVEL_ATK_GAIN} ATK` : '';
+    addLog(`⬆ LEVEL UP! You are now level ${state.level}. +${CONFIG.LEVEL_HP_GAIN} max HP${atkMsg}, fully healed.`, 'win');
   }
 }
 
