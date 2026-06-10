@@ -55,6 +55,53 @@ const CONFIG = {
   ENEMY_ATTACK_DELAY: 500,
 };
 
+// ==================== TIMER ====================
+let timerStart = null;
+let timerInterval = null;
+let timerElapsed = 0;
+
+function formatTime(ms) {
+  let totalSec = Math.floor(ms / 1000);
+  let min = String(Math.floor(totalSec / 60)).padStart(2, '0');
+  let sec = String(totalSec % 60).padStart(2, '0');
+  return `${min}:${sec}`;
+}
+
+function updateTimerDisplay() {
+  let el = document.getElementById('timerDisplay');
+  if (!el) return;
+  if (timerStart !== null) {
+    timerElapsed = Date.now() - timerStart;
+  }
+  el.textContent = `⏱ ${formatTime(timerElapsed)}`;
+}
+
+function startTimer() {
+  stopTimer();
+  timerStart = Date.now();
+  timerElapsed = 0;
+  updateTimerDisplay();
+  timerInterval = setInterval(updateTimerDisplay, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  if (timerStart !== null) {
+    timerElapsed = Date.now() - timerStart;
+    timerStart = null;
+  }
+}
+
+function getTimeString() {
+  if (timerStart !== null) {
+    return formatTime(Date.now() - timerStart);
+  }
+  return formatTime(timerElapsed);
+}
+
 // ==================== DATA POOLS ====================
 const ENEMY_POOL = [
   { name: 'Glitch Drone',    emoji: '🤖', hp: 20, atk: 2, def: 2, evd: 1, dice: 4, xp: 3, creds: 15 },
@@ -160,7 +207,7 @@ let state = {
   xp: 0, xpToLevel: CONFIG.START_XP_TO_LEVEL,
   creds: 0,
   weapon: { name: CONFIG.START_WEAPON.name, dice: CONFIG.START_WEAPON.dice, bonus: CONFIG.START_WEAPON.bonus },
-  armor: { name: CONFIG.START_ARMOR.name, def: CONFIG.START_ARMOR.def },
+  armor: { name: CONFIG.START_ARMOR.name, def: CONFIG.START_ARMOR.def, evd: CONFIG.START_ARMOR.evd },
   inventory: [],   // [{name, type:'weapon'|'armor'|'heal', ...}]
   hasKey: false,
   bossDefeated: false,
@@ -356,7 +403,7 @@ function playerAttack() {
 
   // Enemy counter-attacks after a short delay
   updateCombatPanel();
-  setTimeout(() => enemyAttack(), 500);
+  setTimeout(() => enemyAttack(), CONFIG.ENEMY_ATTACK_DELAY);
 }
 
 function enemyAttack() {
@@ -638,7 +685,7 @@ function checkLevelUp() {
     state.maxHp += CONFIG.LEVEL_HP_GAIN;
     state.hp = state.maxHp; // full heal on level up
     state.atk += CONFIG.LEVEL_ATK_GAIN;
-    addLog(`⬆ LEVEL UP! You are now level ${state.level}. +6 max HP, +1 ATK, fully healed.`, 'win');
+    addLog(`⬆ LEVEL UP! You are now level ${state.level}. +${CONFIG.LEVEL_HP_GAIN} max HP, +${CONFIG.LEVEL_ATK_GAIN} ATK, fully healed.`, 'win');
   }
 }
 
@@ -656,6 +703,7 @@ function gameOverLose() {
   }
 
   state.gameOver = true;
+  stopTimer();
   endCombat();
   addLog('💀 CONNECTION TERMINATED. You died in the Spire.', 'danger');
   render();
@@ -663,6 +711,7 @@ function gameOverLose() {
     <div class="modal">
       <h2>☠ FLATLINED</h2>
       <p>Your body is another data-ghost in the Spire. Floor reached: <b>${state.level}</b></p>
+      <p style="color:#7a9aaa">⏱ Time: ${getTimeString()}</p>
       <p style="color:#ffcc00">Creds lost: ${state.creds}¢</p>
       <button class="btn danger" onclick="newGame()">⟳ JACK IN AGAIN</button>
     </div>
@@ -671,6 +720,7 @@ function gameOverLose() {
 
 function gameOverWin() {
   state.gameOver = true;
+  stopTimer();
   state.bossDefeated = true;
   addLog('🏆 BOSS DEFEATED! The Spire\'s grip on this sector is broken... for now.', 'win');
   render();
@@ -678,6 +728,7 @@ function gameOverWin() {
     <div class="modal">
       <h2>🏆 SPIRE BREAKER</h2>
       <p>You destroyed the boss and escaped with <b>${state.creds}¢</b> at level <b>${state.level}</b>.</p>
+      <p style="color:#39ff14">⏱ Time: ${getTimeString()}</p>
       <p style="color:#39ff14">The Neon Reckoning spreads...</p>
       <button class="btn gold" onclick="newGame()">⟳ NEW RUN</button>
     </div>
@@ -1145,6 +1196,7 @@ function newGame() {
   generateFloor();
   document.getElementById('log').innerHTML = '';
   addLog('System boot: Welcome to the Spire, runner. Find the key. Unlock the boss chamber. Survive.', 'msg');
+  startTimer();
   render();
 }
 
