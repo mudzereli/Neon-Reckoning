@@ -27,6 +27,7 @@ body{
   height:100vh;
   display:flex;
   flex-direction:column;
+  overflow-y:auto;
 }
 h1{
   text-align:center;
@@ -69,10 +70,10 @@ h1{
 /* grid */
 #grid{
   display:grid;
-  grid-template-columns:repeat(10,1fr);
-  gap:2px;
+  grid-template-columns:16px repeat(10,1fr);
+  gap:1px;
   margin:0 auto;
-  max-width:400px;
+  max-width:416px;
 }
 .cell{
   aspect-ratio:1;
@@ -179,12 +180,16 @@ h1{
   border:1px solid #ff8c42;
   background:#0f111a;
   padding:6px 8px;
-  margin-bottom:6px;
+  margin:6px 0;
 }
 #combatPanel.active{display:block}
 #combatPanel h2{color:#ff8c42;font-size:.8rem;letter-spacing:2px;border-bottom:1px solid #3a2a1a;padding-bottom:2px;margin-bottom:4px}
 #combatPanel .enemy-name{color:#ff8c42;font-weight:bold;font-size:.85rem}
-#combatPanel .enemy-desc{color:#7a9aaa;font-size:.75rem;margin-bottom:4px}
+#combatPanel .enemy-desc{color:#7a9aaa;font-size:.75rem}
+#combatPanel .combat-row{display:flex;gap:12px;margin-bottom:4px}
+#combatPanel .combat-left{flex:1;min-width:0}
+#combatPanel .combat-right{flex:1;min-width:0}
+#combatPanel .combat-right .stat-val{font-size:inherit}
 /* inventory */
 .inv-item{
   display:flex;
@@ -197,6 +202,13 @@ h1{
 .inv-item.clickable:hover{background:#05d5ff11}
 .inv-item .use{color:#39ff14;cursor:pointer}
 .inv-item .use:hover{text-decoration:underline}
+/* inventory filter chips */
+.inv-filter{
+  font-size:.6rem;padding:0 4px;cursor:pointer;
+  border:1px solid #1a3a4a;color:#5a7a8a;user-select:none;line-height:1.5;
+}
+.inv-filter:hover{border-color:#05d5ff88;color:#05d5ff}
+.inv-filter.active{border-color:#05d5ff;color:#05d5ff;background:#05d5ff11}
 /* modal overlay - only for game over */
 .overlay{
   position:fixed;top:0;left:0;right:0;bottom:0;
@@ -251,7 +263,15 @@ h1{
         </div>
       </div>
       <div class="panel panel-inv">
-        <h2>◈ INVENTORY <span style="float:right;font-weight:normal;font-size:.65rem" id="keyStatus">🔒 No key</span></h2>
+        <h2>◈ INVENTORY <span style="float:right;font-weight:normal;font-size:.65rem;display:flex;align-items:center;gap:3px">
+          <span id="keyStatus" style="color:#7a9aaa">🔒 No key</span>
+          <span style="color:#3a5a6a">|</span>
+          <span class="inv-filter active" data-filter="all" onclick="toggleInventoryFilter('all')">All</span>
+          <span class="inv-filter active" data-filter="weapon" onclick="toggleInventoryFilter('weapon')">⚔️</span>
+          <span class="inv-filter active" data-filter="armor" onclick="toggleInventoryFilter('armor')">🛡️</span>
+          <span class="inv-filter active" data-filter="heal" onclick="toggleInventoryFilter('heal')">💉</span>
+          <span class="inv-filter active" data-filter="passive" onclick="toggleInventoryFilter('passive')">📡</span>
+        </span></h2>
         <div id="inv"></div>
       </div>
       <div class="panel">
@@ -280,12 +300,21 @@ h1{
   </div>
   <div class="panel" id="combatPanel">
     <h2>⚔ COMBAT</h2>
-    <div class="enemy-name" id="combatEnemyName"></div>
-    <div class="enemy-desc" id="combatEnemyDesc"></div>
-    <div class="stat-row"><span>Enemy HP</span><span class="stat-val" id="combatEnemyHp"></span></div>
+    <div class="combat-row">
+      <div class="combat-left">
+        <div class="enemy-name" id="combatEnemyName"></div>
+        <div class="enemy-desc" id="combatEnemyDesc"></div>
+      </div>
+      <div class="combat-right">
+        <div class="stat-row" style="margin:0">
+          <span style="color:#7a9aaa">ATK</span><span class="stat-val" id="combatEnemyAtk"></span>
+          <span style="color:#7a9aaa;margin-left:10px">DEF</span><span class="stat-val" id="combatEnemyDef"></span>
+          <span style="color:#7a9aaa;margin-left:10px">EVD</span><span class="stat-val" id="combatEnemyEvd"></span>
+        </div>
+      </div>
+    </div>
+    <div class="stat-row"><span>HP</span><span class="stat-val" id="combatEnemyHp"></span></div>
     <div class="bar-bg"><div class="bar-fill bar-hp" id="combatEnemyHpBar"></div></div>
-    <div class="stat-row"><span>Enemy ATK</span><span class="stat-val" id="combatEnemyAtk"></span> <span style="margin-left:8px">EVD</span><span class="stat-val" id="combatEnemyEvd"></span> <span style="margin-left:8px">DEF</span><span class="stat-val" id="combatEnemyDef"></span></div>
-    <div class="stat-row" style="margin-top:6px"><span>Your  ATK</span><span class="stat-val" id="combatPlayerAtk"></span> <span style="margin-left:8px">EVD</span><span class="stat-val" id="combatPlayerEvd"></span> <span style="margin-left:8px">DEF</span><span class="stat-val" id="combatPlayerDef"></span></div>
     <div class="btn-row">
       <button class="btn danger" onclick="playerAttack()">⚔️ <u>A</u>ttack</button>
       <button class="btn" onclick="playerDefend()">🛡️ <u>D</u>efend</button>

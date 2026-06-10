@@ -226,6 +226,7 @@ let state = {
   vaultRoom5: null, // analyzer vault
   vaultRoom6: null, // trap scanner vault
   vaultRoom7: null, // heal scanner vault
+  inventoryFilters: new Set(['weapon', 'armor', 'heal', 'passive']),
 };
 
 // ==================== ROOM GENERATION ====================
@@ -348,14 +349,8 @@ function updateCombatPanel() {
   document.getElementById('combatEnemyHp').textContent = `${e.hp}/${e.maxHp}`;
   document.getElementById('combatEnemyHpBar').style.width = `${(e.hp/e.maxHp)*100}%`;
   document.getElementById('combatEnemyAtk').textContent = `d${e.dice}+${e.atk}`;
-  document.getElementById('combatEnemyEvd').textContent = e.evd;
   document.getElementById('combatEnemyDef').textContent = e.def;
-  let totalAtk = state.atk + state.weapon.bonus;
-  let atkBonus = defending ? -1 : 0;
-  let defBonus = defending ? 1 : 0;
-  document.getElementById('combatPlayerAtk').textContent = `d${state.weapon.dice}+${totalAtk + atkBonus}${defending ? ' (−1)' : ''}`;
-  document.getElementById('combatPlayerEvd').textContent = state.evd;
-  document.getElementById('combatPlayerDef').textContent = state.def + defBonus;
+  document.getElementById('combatEnemyEvd').textContent = e.evd;
 }
 
 function endCombat() {
@@ -483,7 +478,9 @@ function enterRoom(x, y) {
   // Boss room - check if locked
   if (room.type === 'boss') {
     if (room.locked && !state.hasKey) {
+      state.bossRevealed = true;
       addLog('🔒 The boss chamber is locked. You need a key.', 'danger');
+      render();
       return;
     }
     if (room.locked && state.hasKey) {
@@ -611,12 +608,8 @@ function showBossPrompt() {
   document.getElementById('combatEnemyHp').textContent = `${boss.hp}/${boss.hp}`;
   document.getElementById('combatEnemyHpBar').style.width = '100%';
   document.getElementById('combatEnemyAtk').textContent = `d${boss.dice}+${boss.atk}`;
-  document.getElementById('combatEnemyEvd').textContent = boss.evd;
   document.getElementById('combatEnemyDef').textContent = boss.def;
-  let totalAtk = state.atk + state.weapon.bonus;
-  document.getElementById('combatPlayerAtk').textContent = `d${state.weapon.dice}+${totalAtk}`;
-  document.getElementById('combatPlayerEvd').textContent = state.evd;
-  document.getElementById('combatPlayerDef').textContent = state.def;
+  document.getElementById('combatEnemyEvd').textContent = boss.evd;
   // Replace buttons
   let btnRow = panel.querySelector('.btn-row');
   btnRow.innerHTML = `
@@ -643,8 +636,15 @@ function acceptBossFight() {
 }
 
 function declineBoss() {
-  document.getElementById('combatPanel').classList.remove('active');
-  document.getElementById('combatPanel')._pendingBoss = null;
+  let panel = document.getElementById('combatPanel');
+  panel._pendingBoss = null;
+  panel.classList.remove('active');
+  // Restore normal combat buttons so they don't stay as "Challenge / Step Back"
+  panel.querySelector('.btn-row').innerHTML = `
+    <button class="btn danger" onclick="playerAttack()">⚔ <u>A</u>ttack</button>
+    <button class="btn" onclick="playerDefend()">🛡️ <u>D</u>efend</button>
+    <button class="btn" id="fleeBtn" onclick="playerFlee()">↩ <u>F</u>lee</button>
+  `;
   addLog('You step back from the boss chamber. Prepare yourself.', 'info');
 }
 
@@ -799,26 +799,59 @@ function updateKeyStatus() {
   }
 }
 
+function toggleInventoryFilter(type) {
+  if (type === 'all') {
+    state.inventoryFilters = new Set(['weapon', 'armor', 'heal', 'passive']);
+  } else {
+    if (state.inventoryFilters.has(type)) {
+      state.inventoryFilters.delete(type);
+    } else {
+      state.inventoryFilters.add(type);
+    }
+  }
+  render();
+}
+
+function getItemTypeLabel(item) {
+  if (item.type === 'weapon') return 'weapon';
+  if (item.type === 'armor') return 'armor';
+  if (item.type === 'revive') return 'passive';
+  if (PASSIVE_ITEM_ICONS[item.type]) return 'passive';
+  if (item.type === 'heal') return 'heal';
+  return 'other';
+}
+
 function renderInventory() {
   let inv = document.getElementById('inv');
+  // Update filter chip active state — multi-select
+  let allActive = ['weapon', 'armor', 'heal', 'passive'].every(t => state.inventoryFilters.has(t));
+  document.querySelectorAll('.inv-filter').forEach(el => {
+    if (el.dataset.filter === 'all') {
+      el.classList.toggle('active', allActive);
+    } else {
+      el.classList.toggle('active', state.inventoryFilters.has(el.dataset.filter));
+    }
+  });
   let w = state.weapon;
   let a = state.armor;
   let html = '';
-  // Equipped gear
-  let wDice = `d${w.dice}${w.bonus?'+'+w.bonus:''}`;
-  html += `<div class="inv-item" style="color:#ff8c42">
-    <span>⚔️ ${w.name} <span style="color:#ff8c4288">[${wDice}]</span></span>
+  // Equipped gear (always visible) — single row, stats omitted (see STATS panel)
+  html += `<div class="inv-item" style="display:flex;gap:8px">
+    <span style="color:#ff8c42;flex:1">⚔️ ${w.name}</span>
+    <span style="color:#05d5ff;flex:1;text-align:right">🛡️ ${a.name}</span>
   </div>`;
-  let defStr = a.def !== 0 ? (a.def > 0 ? '+' : '') + a.def + ' DEF' : '';
-  let evdStr = a.evd !== 0 ? (a.evd > 0 ? '+' : '') + a.evd + ' EVD' : '';
-  let sep = defStr && evdStr ? ' / ' : '';
-  html += `<div class="inv-item" style="color:#05d5ff">
-    <span>🛡️ ${a.name} <span style="color:#05d5ff88">[${defStr}${sep}${evdStr || '—'}]</span></span>
-  </div>`;
-  if (state.inventory.length === 0) {
+
+  // Filter items — multi-select
+  let filtered = state.inventory.filter((item) => {
+    return state.inventoryFilters.has(getItemTypeLabel(item));
+  });
+
+  if (filtered.length === 0) {
     html += '<div style="color:#4a6a7a;font-size:.7rem;padding-top:4px">no items</div>';
   } else {
-    html += state.inventory.map((item, i) => {
+    // Use original index for actions so [equip]/[use]/[drop] work correctly
+    html += filtered.map((item, fi) => {
+      let i = state.inventory.indexOf(item);
       let label, stat, action;
       if (item.type === 'weapon') {
         label = item.name;
@@ -908,7 +941,34 @@ function renderGrid() {
   let grid = document.getElementById('grid');
   grid.innerHTML = '';
 
+  // Set 11 columns: 1 label + 10 grid cells
+  grid.style.gridTemplateColumns = '16px ' + '1fr '.repeat(GRID_SIZE).trim();
+
+  // Top-left corner (empty)
+  let tl = document.createElement('div');
+  tl.style.cssText = 'font-size:.55rem;color:#3a5a6a;display:flex;align-items:center;justify-content:center';
+  grid.appendChild(tl);
+
+  // Column labels (0-9)
+  for (let x = 0; x < GRID_SIZE; x++) {
+    let lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:.55rem;color:#3a5a6a;display:flex;align-items:center;justify-content:center';
+    lbl.textContent = x;
+    grid.appendChild(lbl);
+  }
+
+  // Hoist inventory checks — computed once, not per cell
+  let hasTrapVision = state.inventory.some(i => i.type === 'trap-vision');
+  let hasHealVision = state.inventory.some(i => i.type === 'heal-vision');
+  let hasScanner = state.inventory.some(i => i.type === 'scanner');
+
   for (let y = 0; y < GRID_SIZE; y++) {
+    // Row label
+    let rl = document.createElement('div');
+    rl.style.cssText = 'font-size:.55rem;color:#3a5a6a;display:flex;align-items:center;justify-content:center';
+    rl.textContent = y;
+    grid.appendChild(rl);
+
     for (let x = 0; x < GRID_SIZE; x++) {
       let cell = document.createElement('div');
       cell.className = 'cell';
@@ -917,8 +977,6 @@ function renderGrid() {
       let dist = Math.abs(x - state.px) + Math.abs(y - state.py);
 
       let icon = '';
-      let hasTrapVision = state.inventory.some(i => i.type === 'trap-vision');
-      let hasHealVision = state.inventory.some(i => i.type === 'heal-vision');
       if (x === state.px && y === state.py) {
         icon = '⬡';
         cell.classList.add('current');
@@ -932,7 +990,6 @@ function renderGrid() {
         else if (room.type === 'trap') { icon = '·'; }
         else icon = '·';
       } else if (state.bossRevealed && x === state.bossRoom.x && y === state.bossRoom.y) {
-        // Boss revealed by intel
         icon = state.grid[y][x].locked ? '🔒' : '◆';
       }
 
@@ -940,7 +997,6 @@ function renderGrid() {
       if (dist === 1 && !state.gameOver) {
         cell.classList.add('adjacent');
         if (!state.visited.has(key) && !(state.bossRevealed && x===state.bossRoom.x && y===state.bossRoom.y) && !(state.keyRevealed && x===state.keyRoom.x && y===state.keyRoom.y)) {
-          let hasScanner = state.inventory.some(i => i.type === 'scanner');
           if (hasScanner) {
             if (room.type === 'boss') icon = '🔒';
             else if (room.type === 'key') icon = '🔑';
@@ -1189,6 +1245,7 @@ function newGame() {
     vaultRoom5: null,
     vaultRoom6: null,
     vaultRoom7: null,
+    inventoryFilters: new Set(['weapon', 'armor', 'heal', 'passive']),
   };
   combatEnemy = null;
   endCombat();
