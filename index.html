@@ -49,8 +49,7 @@ h1{
 .col-left{flex:0 0 auto;width:430px}
 .col-right{flex:1;min-width:260px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .col-right .panel{flex-shrink:0}
-.col-right .panel-inv{flex:1;min-height:0;display:flex;flex-direction:column}
-.col-right .panel-inv #invItems{flex:1;overflow-y:auto;min-height:0}
+.panel-room{flex:1;min-height:0;display:flex;flex-direction:column}
 
 /* panels */
 .panel{
@@ -179,8 +178,8 @@ h1{
   display:none;
   border:1px solid #ff8c42;
   background:#0f111a;
-  padding:6px 8px;
-  margin:6px 0;
+  padding:5px 8px;
+  margin:2px 0 4px;
 }
 #combatPanel .enemy-name{color:#ff8c42;font-weight:bold;font-size:.8rem}#combatPanel .enemy-desc{color:#7a9aaa;font-size:.7rem}
 /* inventory */
@@ -194,14 +193,7 @@ h1{
 .inv-item.clickable{cursor:pointer}
 .inv-item.clickable:hover{background:#05d5ff11}
 .inv-item .use{color:#39ff14;cursor:pointer}
-.inv-item .use:hover{text-decoration:underline}
-/* inventory filter chips */
-.inv-filter{
-  font-size:.6rem;padding:0 4px;cursor:pointer;
-  border:1px solid #1a3a4a;color:#5a7a8a;user-select:none;line-height:1.5;
-}
-.inv-filter:hover{border-color:#05d5ff88;color:#05d5ff}
-.inv-filter.active{border-color:#05d5ff;color:#05d5ff;background:#05d5ff11}
+.use{cursor:pointer}
 /* modal overlay - only for game over */
 .overlay{
   position:fixed;top:0;left:0;right:0;bottom:0;
@@ -215,7 +207,6 @@ h1{
   background:#0d1117;
   border:2px solid #ff2a6d;
   padding:24px;
-  max-width:400px;
   text-align:center;
   box-shadow:0 0 40px #ff2a6d44;
 }
@@ -226,6 +217,10 @@ h1{
   color:#ffcc00;
   margin:8px 0;
 }
+/* inventory modal scroll */
+.modal-scroll{max-width:400px;width:100%;box-sizing:border-box;max-height:85vh;overflow-y:auto;text-align:left;padding:16px 20px}
+.modal-scroll h2{color:#ff2a6d;font-size:.8rem;letter-spacing:2px;margin-bottom:8px}
+.modal-scroll .inv-item{font-size:.82rem}
 </style>
 </head>
 <body>
@@ -244,7 +239,7 @@ h1{
     </div>
     <div class="col-right">
       <div class="panel">
-        <h2>◈ STATS <span style="float:right;font-weight:normal;font-size:.7rem;color:#7a9aaa">LVL <span id="lvlVal" style="color:#ffcc00">1</span> &nbsp; ¢<span id="credsVal" style="color:#ffcc00">0</span></span></h2>
+        <h2>◈ STATS <span style="float:right;font-weight:normal;font-size:.7rem;color:#7a9aaa">LVL <span id="lvlVal" style="color:#ffcc00">1</span> &nbsp; ¢<span id="credsVal" style="color:#ffcc00">0</span> <span id="statsKey" style="margin-left:6px"></span></span></h2>
         <div class="stat-row"><span>HP</span><span class="stat-val" id="hpText">20/20</span></div>
         <div class="bar-bg"><div class="bar-fill bar-hp" id="hpBar" style="width:100%"></div></div>
         <div class="stat-row"><span>XP</span><span class="stat-val" id="xpText">0/10</span></div>
@@ -254,21 +249,10 @@ h1{
           <span style="margin-left:10px;color:#7a9aaa">DEF</span><span class="stat-val"><span id="defVal">3</span></span>
           <span style="margin-left:10px;color:#7a9aaa">EVD</span><span class="stat-val"><span id="evdVal">2</span></span>
         </div>
+        <div id="statsGear" style="font-size:.75rem;padding-top:3px;border-top:1px solid #1a3a4a;margin-top:3px"></div>
+        <div style="text-align:right;margin-top:3px"><button class="btn" style="font-size:.7rem;padding:2px 8px" onclick="showInventoryModal()">📦 INVENTORY</button></div>
       </div>
-      <div class="panel panel-inv">
-        <div id="inv">
-          <h2 style="display:flex;align-items:center;gap:4px">◈ INVENTORY
-            <span id="keyStatus" style="color:#7a9aaa;font-weight:normal;font-size:.65rem">🔒 No key</span>
-            <span style="flex:1"></span>
-            <span class="inv-filter active" data-filter="all" onclick="toggleInventoryFilter('all')">All</span>
-            <span class="inv-filter active" data-filter="weapon" onclick="toggleInventoryFilter('weapon')">⚔️</span>
-            <span class="inv-filter active" data-filter="armor" onclick="toggleInventoryFilter('armor')">🛡️</span>
-            <span class="inv-filter active" data-filter="heal" onclick="toggleInventoryFilter('heal')">💉</span>
-            <span class="inv-filter active" data-filter="passive" onclick="toggleInventoryFilter('passive')">📡</span>
-          </h2>
-          <div id="invItems"></div>
-        </div>
-        <div id="combatPanel" style="display:none;flex-direction:column;flex:1">
+      <div id="combatPanel" class="panel" style="display:none;flex-direction:column">
           <h2 style="color:#ff8c42;font-size:.8rem;letter-spacing:2px;border-bottom:1px solid #3a2a1a;padding-bottom:2px;margin-bottom:4px">⚔ COMBAT</h2>
           <div style="display:flex;gap:12px;margin-bottom:4px">
             <div style="flex:1;min-width:0">
@@ -290,13 +274,15 @@ h1{
             <button class="btn" id="fleeBtn" onclick="playerFlee()">↩ <u>F</u>lee</button>
           </div>
         </div>
-      </div>
-      <div class="panel">
+      <div class="panel panel-room">
         <h2>◈ ROOM</h2>
-        <div id="roomArt" style="font-size:4rem;line-height:1.2;text-align:center;margin-bottom:4px"></div>
-        <div id="roomDesc" style="font-size:.85rem;color:#7a9aaa;margin-bottom:6px"></div>
-        <div id="roomSearchResult" style="font-size:.78rem;color:#ffcc00;margin-bottom:4px"></div>
-        <button class="btn" id="searchBtn" onclick="searchRoom()" style="display:none;width:100%">🔍 Search Room</button>
+        <div id="roomContent" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0">
+        <div id="roomArt" style="font-size:4rem;line-height:1.2;text-align:center"></div>
+        <div id="roomDesc" style="font-size:.85rem;color:#7a9aaa;text-align:center;max-width:380px;margin-top:4px"></div>
+        <div id="roomSearchResult" style="font-size:.78rem;color:#ffcc00;text-align:center;margin-top:4px"></div>
+        <button class="btn" id="searchBtn" onclick="searchRoom()" style="display:none;width:100%;max-width:260px;margin-top:6px">🔍 Search Room</button>
+        </div>
+        <div id="roomLoot" style="flex:1;overflow-y:auto;min-height:0"></div>
       </div>
     </div>
   </div>
@@ -306,7 +292,7 @@ h1{
       <div id="log" style="flex:1;overflow-y:auto;font-size:.78rem;line-height:1.4;min-height:0"><div class="msg">System booting...</div></div>
     </div>
     <div class="panel" style="display:flex;flex-direction:column">
-      <div style="color:#ff2a6d;font-size:.8rem;letter-spacing:2px;border-bottom:1px solid #1a3a4a;padding-bottom:2px;margin-bottom:4px">&nbsp;</div>
+        <h2>◈ NAV</h2>
       <div style="flex:1;display:flex;align-items:center;justify-content:center">
       <div class="dpad" style="margin:0">
         <button class="dpad-btn up" onclick="movePlayer(0,-1)" title="Up">▲</button>
@@ -324,6 +310,7 @@ h1{
 </div>
 <div id="overlayContainer"></div>
 
+<script src="config.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
